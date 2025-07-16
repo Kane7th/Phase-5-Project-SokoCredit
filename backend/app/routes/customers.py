@@ -2,11 +2,13 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models.customer import Customer
+from utils.decorators import role_required
 
 customers_bp = Blueprint('customers', __name__)
 
 @customers_bp.route("/", methods=["GET"])
 @jwt_required()
+@role_required(["admin", "lender"])
 def list_customers():
     all_customers = Customer.query.all()
     result = [
@@ -23,8 +25,9 @@ def list_customers():
 @customers_bp.route("/", methods=["POST"])
 @customers_bp.route("", methods=["POST"])
 @jwt_required()
+@role_required(["admin", "lender", "mama_mboga"])
 def create_customer():
-    identity = get_jwt_identity()  # returns: "user_1:admin"
+    identity = get_jwt_identity() 
     user_id, role = identity.split(":")
     user_id = int(user_id.replace("user_", ""))
 
