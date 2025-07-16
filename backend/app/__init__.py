@@ -3,7 +3,8 @@ from flask import Flask
 from dotenv import load_dotenv
 from .extensions import db, migrate, jwt
 from app.routes.auth import auth_bp
-from app.models import user 
+from app.models import user, customer
+from app.routes.customers import customers_bp
 
 def create_app():
     load_dotenv()
@@ -20,5 +21,6 @@ def create_app():
 
     # Register Blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
-
+    app.register_blueprint(customers_bp, url_prefix='/customers')
+    
     return app

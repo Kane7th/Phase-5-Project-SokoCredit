@@ -1,9 +1,8 @@
-from flask import request, jsonify
+from flask import request, jsonify, Blueprint
 from flask_jwt_extended import create_access_token
 from app.extensions import db
 from app.models.user import User
 
-from flask import Blueprint
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route("/ping", methods=["GET"])
@@ -21,10 +20,7 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({"msg": "Invalid credentials"}), 401
 
-    access_token = create_access_token(identity={
-        "id": user.id,
-        "username": user.username,
-        "role": user.role
-    })
+    identity = f"user_{user.id}:{user.role}"
+    access_token = create_access_token(identity=identity)
 
     return jsonify(access_token=access_token), 200
