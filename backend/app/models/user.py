@@ -2,6 +2,8 @@ from app.extensions import db
 from passlib.hash import pbkdf2_sha256
 
 class User(db.Model):
+    __tablename__ = 'users'
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=True)
     phone = db.Column(db.String(20), unique=True, nullable=True)
