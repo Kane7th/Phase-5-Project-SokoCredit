@@ -42,3 +42,4 @@ def get_profile():
         "username": user.username,
         "role": user.role
     }), 200
+

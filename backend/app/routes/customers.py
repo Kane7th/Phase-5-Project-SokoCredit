@@ -8,6 +8,7 @@ import csv
 import io
 import openpyxl
 from openpyxl.utils import get_column_letter
+from datetime import datetime
 
 customers_bp = Blueprint('customers', __name__)
 
@@ -17,7 +18,9 @@ def extract_identity():
     return int(user_id_str.replace("user_", "")), role
 
 def is_authorized(customer, user_id, role):
-    return not (role == "mama_mboga" and customer.created_by != user_id)
+    if role == "mama_mboga":
+        return customer.id == user_id  # mama_mboga can only edit themselves
+    return role in ["admin", "lender"] or customer.created_by == user_id
 
 def format_customer(customer):
     return {
@@ -140,9 +143,37 @@ def list_customers():
         "pages": pagination.pages
     })
 
-# Other route functions remain unchanged and are already present
+@customers_bp.route("/<int:customer_id>", methods=["PATCH"])
+@jwt_required()
+@role_required(["admin", "lender", "mama_mboga"])
+def patch_customer(customer_id):
+    data = request.get_json()
+    user_id, role = extract_identity()
+    customer = Customer.query.get_or_404(customer_id)
 
-# OpenAPI schema endpoint
+    if not is_authorized(customer, user_id, role):
+        return jsonify({"msg": "Not authorized to update this customer"}), 403
+
+    allowed_fields = ["full_name", "phone", "business_name", "location"]
+    if role in ["admin", "lender"]:
+        allowed_fields.append("documents")
+
+    for field in allowed_fields:
+        if field in data:
+            setattr(customer, field, data[field])
+
+    # Enforce phone uniqueness
+    if "phone" in data:
+        existing = Customer.query.filter(Customer.phone == data["phone"], Customer.id != customer.id).first()
+        if existing:
+            return jsonify({"msg": "Phone number already exists for another customer"}), 409
+
+    # Audit log (simple example)
+    print(f"[AUDIT LOG] User {user_id} ({role}) updated customer {customer.id} at {datetime.utcnow().isoformat()}.")
+
+    db.session.commit()
+    return jsonify({"msg": "Customer updated", "customer": format_customer(customer)}), 200
+
 @customers_bp.route("/openapi", methods=["GET"])
 def openapi_schema():
     schema = {
@@ -168,6 +199,7 @@ def openapi_schema():
         }
     }
     return jsonify(schema)
+
 
 # Unit tests
 import unittest
