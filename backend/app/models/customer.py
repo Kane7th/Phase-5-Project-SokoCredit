@@ -1,7 +1,8 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from sqlalchemy_serializer import SerializerMixin
 
-class Customer(db.Model):
+class Customer(db.Model, SerializerMixin):
     __tablename__ = 'customers'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -13,14 +14,4 @@ class Customer(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # agent/admin ID
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "full_name": self.full_name,
-            "phone": self.phone,
-            "business_name": self.business_name,
-            "location": self.location,
-            "documents": self.documents,
-            "created_by": self.created_by,
-            "created_at": self.created_at.isoformat()
-        }
+    serialize_rules = ('id', 'full_name', 'phone', 'business_name', 'location', 'documents', 'created_at')
