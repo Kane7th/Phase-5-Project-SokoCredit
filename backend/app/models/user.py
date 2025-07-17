@@ -5,7 +5,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), default='agent')  # 'admin' or 'agent'
+    role = db.Column(db.String(20), default='Mama Mboga', nullable=False)  # 'admin', 'mama mboga' or 'lender'
 
     def set_password(self, password):
         self.password_hash = pbkdf2_sha256.hash(password)
