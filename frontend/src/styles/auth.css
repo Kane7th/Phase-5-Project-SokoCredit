@@ -1,0 +1,324 @@
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+  padding: var(--space-4);
+}
+
+.auth-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 480px;
+  overflow: hidden;
+}
+
+.auth-header {
+  text-align: center;
+  padding: var(--space-8) var(--space-6) var(--space-6);
+}
+
+.auth-logo {
+  width: 64px;
+  height: 64px;
+  background: var(--primary-blue);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+  color: var(--white);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+}
+
+.auth-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--gray-900);
+  margin-bottom: var(--space-2);
+}
+
+.auth-subtitle {
+  color: var(--gray-500);
+  font-size: var(--text-sm);
+}
+
+.auth-form {
+  padding: 0 var(--space-6) var(--space-8);
+}
+
+.auth-tabs {
+  display: flex;
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.auth-tab {
+  flex: 1;
+  padding: var(--space-3);
+  text-align: center;
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.auth-tab.active {
+  color: var(--primary-blue);
+  border-bottom-color: var(--primary-blue);
+}
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
+.form-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+
+.form-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.forgot-password {
+  color: var(--primary-blue);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+.demo-accounts {
+  background: var(--gray-50);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-4);
+}
+
+.demo-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--gray-700);
+  margin-bottom: var(--space-2);
+}
+
+.demo-account {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+  margin-bottom: var(--space-1);
+}
+
+.error-message {
+  background: #FEE2E2;
+  border: 1px solid #FECACA;
+  color: var(--danger-red);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.success-message {
+  background: #D1FAE5;
+  border: 1px solid #A7F3D0;
+  color: var(--success-green);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+/* Loading States */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--white);
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Multi-step Form */
+.form-steps {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-6);
+  padding: 0 var(--space-4);
+}
+
+.form-step {
+  display: flex;
+  align-items: center;
+  color: var(--gray-400);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.form-step.active {
+  color: var(--primary-blue);
+}
+
+.form-step.completed {
+  color: var(--success-green);
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--space-2);
+  font-weight: var(--font-semibold);
+}
+
+.form-step.active .step-number {
+  background: var(--primary-blue);
+  color: var(--white);
+}
+
+.form-step.completed .step-number {
+  background: var(--success-green);
+  color: var(--white);
+}
+
+.step-connector {
+  width: 50px;
+  height: 2px;
+  background: var(--gray-200);
+  margin: 0 var(--space-2);
+}
+
+.form-step.completed + .form-step .step-connector {
+  background: var(--success-green);
+}
+
+/* File Upload */
+.file-upload-area {
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius-md);
+  padding: var(--space-8);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.file-upload-area:hover {
+  border-color: var(--primary-blue);
+  background: var(--gray-50);
+}
+
+.file-upload-area.dragover {
+  border-color: var(--primary-blue);
+  background: rgba(30, 64, 175, 0.05);
+}
+
+.file-upload-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-3);
+  color: var(--gray-400);
+}
+
+.file-upload-text {
+  color: var(--gray-600);
+  margin-bottom: var(--space-2);
+}
+
+.file-upload-hint {
+  color: var(--gray-400);
+  font-size: var(--text-sm);
+}
+
+.uploaded-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-2);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.file-name {
+  font-size: var(--text-sm);
+  color: var(--gray-700);
+}
+
+.file-size {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  color: var(--danger-red);
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .auth-card {
+    max-width: 100%;
+    margin: var(--space-4);
+  }
+  
+  .auth-header {
+    padding: var(--space-6) var(--space-4) var(--space-4);
+  }
+  
+  .auth-form {
+    padding: 0 var(--space-4) var(--space-6);
+  }
+  
+  .form-steps {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  
+  .step-connector {
+    display: none;
+  }
+}
