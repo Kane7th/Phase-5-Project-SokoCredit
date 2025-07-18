@@ -1,6 +1,7 @@
 import os
 from flask import Flask
 from dotenv import load_dotenv
+from flask_cors import CORS
 from .extensions import db, migrate, jwt
 from app.routes.auth import auth_bp
 from app.models import user, customer
@@ -14,6 +15,9 @@ def create_app(config="config.default_config.DefaultConfig"):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    # Enable CORS for frontend origin
+    CORS(app, resources={r"/auth/*": {"origins": "http://localhost:5173"}})
 
     from app.routes.customers import customers_bp
 
