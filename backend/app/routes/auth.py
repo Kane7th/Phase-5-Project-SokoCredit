@@ -9,20 +9,20 @@ from utils.decorators import role_required
 
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route("/ping", methods=["GET"])
-def ping():
-    return {"message": "pong!"}
-
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
-    username = data.get("username")
+    credential = data.get("credential")  # can be email or phone
     password = data.get("password")
 
-    if not username or not password:
-        return jsonify({"msg": "Username and password are required"}), 400
+    if not credential or not password:
+        return jsonify({"msg": "Phone/email and password are required"}), 400
 
-    user = User.query.filter_by(username=username).first()
+    # Check if it's a phone number or email
+    if "@" in credential:
+        user = User.query.filter_by(email=credential).first()
+    else:
+        user = User.query.filter_by(phone=credential).first()
 
     if not user or not user.check_password(password):
         return jsonify({"msg": "Invalid credentials"}), 401
@@ -32,6 +32,7 @@ def login():
     refresh_token = create_refresh_token(identity=identity)
 
     return jsonify(access_token=access_token, refresh_token=refresh_token), 200
+
 
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
@@ -53,39 +54,40 @@ def get_profile():
 
 @auth_bp.route("/register", methods=["POST"])
 @jwt_required()
-@role_required(["admin"])
+@role_required(["admin", "lender"])
 def register_user():
     data = request.get_json()
     username = data.get("username")
+    phone = data.get("phone")
+    email = data.get("email")
     password = data.get("password")
     role = data.get("role", "mama_mboga")
 
-    if not username or not password:
-        return jsonify({"msg": "Username and password are required"}), 400
+    # Validate required fields
+    if not username or not phone or not email or not password:
+        return jsonify({"msg": "Username, phone, email, and password are required"}), 400
 
+    # Check for uniqueness
     if User.query.filter_by(username=username).first():
         return jsonify({"msg": "Username already exists"}), 409
+    if User.query.filter_by(phone=phone).first():
+        return jsonify({"msg": "Phone number already exists"}), 409
+    if User.query.filter_by(email=email).first():
+        return jsonify({"msg": "Email already exists"}), 409
 
-    user = User(username=username, role=role)
+    # Create and save user
+    user = User(username=username, phone=phone, email=email, role=role)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
 
     return jsonify({"msg": "User registered", "id": user.id}), 201
 
-@auth_bp.route("/refresh", methods=["POST"])
-@jwt_required(refresh=True)
-def refresh():
-    identity = get_jwt_identity()
-    access_token = create_access_token(identity=identity)
-    return jsonify(access_token=access_token), 200
-
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
     jti = get_jwt()["jti"]
-    # Here you would typically add the JTI to a blacklist
-    # For simplicity, we are not implementing a blacklist in this example
+    # Here you would typically add the JTI to a blacklist which is not implemented in this example
     return jsonify({"msg": "Successfully logged out"}), 200
 
 @auth_bp.route("/logout-all", methods=["POST"])
@@ -95,3 +97,12 @@ def logout_all():
     # This would typically clear the blacklist or invalidate all tokens for the user
     # For simplicity, we are not implementing a blacklist in this example
     return jsonify({"msg": "All sessions logged out"}), 200
+
+# Refresh token endpoint for JWT
+@auth_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    identity = get_jwt_identity()
+    access_token = create_access_token(identity=identity)
+    return jsonify(access_token=access_token), 200
+
