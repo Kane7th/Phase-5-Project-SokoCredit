@@ -1,4 +1,5 @@
 import os
+from .default_config import DefaultConfig
 
 class TestConfig:
     TESTING = True

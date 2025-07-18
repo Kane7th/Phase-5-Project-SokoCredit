@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 from .extensions import db, migrate, jwt
 from app.routes.auth import auth_bp
@@ -21,6 +21,11 @@ def create_app(config="config.default_config.DefaultConfig"):
     # Register Blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(customers_bp, url_prefix='/customers')
+
+    # Error handlers
+    @app.errorhandler(413)
+    def file_too_large(e):
+        return jsonify({"msg": "File too large (max 10MB)"}), 413
 
     return app
 

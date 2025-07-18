@@ -4,6 +4,7 @@ __pycache__/
 *.sqlite3
 *.db
 *.pyc
+
 # Env files
 .env
 *.env
@@ -21,3 +22,6 @@ migrations/
 
 # VS Code settings (optional)
 .vscode/
+
+*.pyc
+__pycache__/
