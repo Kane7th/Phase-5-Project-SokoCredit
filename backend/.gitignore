@@ -22,3 +22,5 @@ migrations/
 
 # VS Code settings (optional)
 .vscode/
+*.pyc
+__pycache__/
