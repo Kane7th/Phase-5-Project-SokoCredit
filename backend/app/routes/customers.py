@@ -90,6 +90,16 @@ def create_customer():
 @jwt_required()
 @role_required(["admin", "lender"])
 def list_customers():
+    # Validate allowed query params
+    ALLOWED_FILTERS = {
+        "page", "per_page", "search", "created_by",
+        "business_name", "has_documents", "location", "format"
+    }
+    for key in request.args:
+        if key not in ALLOWED_FILTERS:
+            return jsonify({"msg": f"Invalid filter: '{key}' is not a valid filter field"}), 400
+
+    # Extract query parameters
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
     search = request.args.get("search", "", type=str)
@@ -101,6 +111,7 @@ def list_customers():
 
     query = Customer.query
 
+    # Filtering
     if location and location.strip():
         query = query.filter(Customer.location == location)
 
@@ -125,16 +136,22 @@ def list_customers():
             Customer.location.ilike(search_term)
         ))
 
+    # CSV or Excel export
     if format_type == "csv":
         customers = query.all()
         csv_data = generate_csv(customers)
-        return Response(csv_data, mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=customers.csv"})
+        return Response(csv_data, mimetype="text/csv", headers={
+            "Content-Disposition": "attachment; filename=customers.csv"
+        })
 
     if format_type == "excel":
         customers = query.all()
         xlsx_data = generate_excel(customers)
-        return Response(xlsx_data, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=customers.xlsx"})
+        return Response(xlsx_data, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={
+            "Content-Disposition": "attachment; filename=customers.xlsx"
+        })
 
+    # Paginate + return JSON
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     return jsonify({
         "customers": [format_customer(c) for c in pagination.items],
@@ -142,6 +159,27 @@ def list_customers():
         "page": pagination.page,
         "pages": pagination.pages
     })
+
+@customers_bp.route("/<int:customer_id>", methods=["GET"])
+@jwt_required()
+@role_required(["admin", "lender", "mama_mboga"])
+def get_customer(customer_id):
+    user_id, role = extract_identity()
+    customer = Customer.query.get_or_404(customer_id)
+
+    if not is_authorized(customer, user_id, role):
+        return jsonify({"msg": "Not authorized to view this customer"}), 403
+
+    return jsonify(format_customer(customer)), 200
+
+@customers_bp.route("/my_customers", methods=["GET"])
+@jwt_required()
+@role_required("lender")
+def get_my_customers():
+    identity = get_jwt_identity()
+    user_id = identity if isinstance(identity, int) else int(identity.split("_")[-1])
+    customers = Customer.query.filter_by(lender_id=user_id).all()
+    return jsonify([c.to_dict() for c in customers])
 
 @customers_bp.route("/<int:customer_id>", methods=["PATCH"])
 @jwt_required()
@@ -199,6 +237,59 @@ def openapi_schema():
         }
     }
     return jsonify(schema)
+
+
+# Upload customer documents
+import os
+from werkzeug.utils import secure_filename
+from flask import current_app
+
+UPLOAD_FOLDER = "uploads/customers"
+
+@customers_bp.route("/<int:customer_id>/upload", methods=["POST"])
+@jwt_required()
+@role_required(["admin", "lender", "mama_mboga"])
+def upload_customer_document(customer_id):
+    user_id, role = extract_identity()
+    customer = Customer.query.get_or_404(customer_id)
+
+    if not is_authorized(customer, user_id, role):
+        return jsonify({"msg": "Not authorized to upload files for this customer"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"msg": "No file part"}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({"msg": "No selected file"}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"msg": "File type not allowed"}), 400
+
+
+    doc_type = request.form.get("doc_type", "unknown")  # e.g. "id_card", "business_permit"
+
+    filename = secure_filename(file.filename)
+    customer_dir = os.path.join(UPLOAD_FOLDER, str(customer_id))
+    os.makedirs(customer_dir, exist_ok=True)
+
+    file_path = os.path.join(customer_dir, f"{doc_type}_{filename}")
+    file.save(file_path)
+
+    # Update customer document reference
+    customer.documents[doc_type] = file_path
+    db.session.commit()
+
+    return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
+
+# Check if file is allowed
+def allowed_file(filename):
+    allowed_exts = current_app.config.get("ALLOWED_EXTENSIONS", {"pdf", "jpg", "jpeg", "png"})
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
+
+
+
 
 
 # Unit tests
