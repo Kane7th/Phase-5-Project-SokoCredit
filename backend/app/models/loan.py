@@ -18,7 +18,8 @@ class Loan(db.Model, SerializerMixin):
     serialize_rules = ('-borrower.loans', 
                        '-lender.issued_loans', 
                        '-repayments.loan', 
-                       '-repayment_schedules.loan'
+                       '-repayment_schedules.loan',
+                       '-loan_product.loans'
                        )
     
     id = db.Column(db.Integer, primary_key=True)
@@ -35,7 +36,9 @@ class Loan(db.Model, SerializerMixin):
     
     borrower_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     lender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    loan_product_id = db.Column(db.Integer, db.ForeignKey('loan_products.id'))
     
+    loan_product = db.relationship('LoanProduct', back_populates='loans')
     borrower = db.relationship('User', back_populates='loans', foreign_keys=[borrower_id])
     lender = db.relationship("User", back_populates="issued_loans", foreign_keys=[lender_id])
     repayments = db.relationship("Repayment", back_populates="loan", cascade="all, delete-orphan")
