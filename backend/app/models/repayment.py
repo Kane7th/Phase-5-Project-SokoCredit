@@ -10,7 +10,7 @@ class Repayment(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)
     schedule_id = db.Column(db.Integer, db.ForeignKey('repayment_schedules.id'))
-
+ 
     amount_paid = db.Column(db.Float, nullable=False)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
     
