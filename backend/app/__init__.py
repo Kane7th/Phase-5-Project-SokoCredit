@@ -3,7 +3,7 @@ from flask import Flask, jsonify
 from dotenv import load_dotenv
 from .extensions import db, migrate, jwt
 from app.routes.auth import auth_bp
-from app.models import User, Customer, Loan, Repayment
+from app.models import User, Customer, Loan, Repayment, RepaymentSchedule
 
 
 def create_app(config="config.default_config.DefaultConfig"):

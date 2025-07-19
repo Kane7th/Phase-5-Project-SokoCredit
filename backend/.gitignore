@@ -13,9 +13,9 @@ __pycache__/
 venv/
 env/
 
-# Flask and migration logs
-instance/
-migrations/
+# # Flask and migration logs
+# instance/
+# migrations/
 
 # OS-specific
 .DS_Store
