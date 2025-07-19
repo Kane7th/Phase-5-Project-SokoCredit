@@ -13,8 +13,8 @@ venv/
 env/
 
 # Flask and migration logs
-instance/
-migrations/
+# instance/
+# migrations/
 
 # OS-specific
 .DS_Store
