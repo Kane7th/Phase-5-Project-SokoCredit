@@ -3,8 +3,7 @@ from flask import Flask, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
 from .extensions import db, migrate, jwt
-from app.routes.auth import auth_bp
-from app.models import User, Customer, Loan, Repayment
+from app.models import User, Customer, Loan, LoanProduct, Repayment, RepaymentSchedule
 
 
 def create_app(config="config.default_config.DefaultConfig"):
@@ -21,10 +20,15 @@ def create_app(config="config.default_config.DefaultConfig"):
     CORS(app, resources={r"/auth/*": {"origins": "http://localhost:5173"}})
 
     from app.routes.customers import customers_bp
-
+    from app.routes.auth import auth_bp
+    from app.routes.loan_routes import loan_bp, loan_product_bp
+    
+    
     # Register Blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(customers_bp, url_prefix='/customers')
+    app.register_blueprint(loan_bp)
+    app.register_blueprint(loan_product_bp)
 
     # Error handlers
     @app.errorhandler(413)
