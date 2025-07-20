@@ -3,6 +3,8 @@ from app.models.customer import Customer
 import json
 from io import BytesIO
 
+from tests.conftest import client
+
 def test_create_customer(client, headers_lender):
     payload = {
         "full_name": "Test User",
@@ -49,9 +51,23 @@ def test_search_and_pagination(client, headers_admin):
     assert res.status_code == 200
     assert "customers" in res.get_json()
 
-# def test_my_customers_filtered(client, headers_lender):
-#     res = client.get("/customers/my_customers?location=Nairobi&has_documents=true", headers=headers_lender)
-#     assert res.status_code == 200
+def test_unauthorized_access(client):
+    res = client.get("/customers/")  # type: ignore # no headers
+    assert res.status_code == 401
+
+def test_filter_by_created_by(client, headers_admin):
+    res = client.get("/customers/?created_by=2", headers=headers_admin)
+    assert res.status_code == 200
+    for c in res.get_json()["customers"]:
+        assert c["created_by"] == 2
+
+def test_delete_customer(client, headers_lender):
+    customer = Customer(full_name="Delete Me", phone="0700123456", business_name="Dead Biz", location="Meru", documents={}, created_by=2)
+    db.session.add(customer)
+    db.session.commit()
+
+    res = client.delete(f"/customers/{customer.id}", headers=headers_lender)
+    assert res.status_code == 204
 
 def test_export_excel(client, headers_admin):
     res = client.get("/customers/?format=excel", headers=headers_admin)

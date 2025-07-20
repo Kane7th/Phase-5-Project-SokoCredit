@@ -81,6 +81,9 @@ def create_customer():
         documents=data.get("documents", {}),
         created_by=user_id
     )
+
+    print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
+
     db.session.add(customer)
     db.session.commit()
 
@@ -150,6 +153,9 @@ def list_customers():
         return Response(xlsx_data, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={
             "Content-Disposition": "attachment; filename=customers.xlsx"
         })
+    
+    # audit log for listing customers
+    print(f"[AUDIT LOG] User {get_jwt_identity()} listed customers at {datetime.utcnow().isoformat()}.")
 
     # Paginate + return JSON
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -169,6 +175,8 @@ def get_customer(customer_id):
 
     if not is_authorized(customer, user_id, role):
         return jsonify({"msg": "Not authorized to view this customer"}), 403
+    
+    print(f"[AUDIT LOG] User {user_id} ({role}) viewed customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     return jsonify(format_customer(customer)), 200
 
@@ -179,6 +187,9 @@ def get_my_customers():
     identity = get_jwt_identity()
     user_id = identity if isinstance(identity, int) else int(identity.split("_")[-1])
     customers = Customer.query.filter_by(lender_id=user_id).all()
+
+    # Audit log for listing own customers 
+    print(f"[AUDIT LOG] User {user_id} listed their own customers at {datetime.utcnow().isoformat()}.")
     return jsonify([c.to_dict() for c in customers])
 
 @customers_bp.route("/<int:customer_id>", methods=["PATCH"])
@@ -206,11 +217,28 @@ def patch_customer(customer_id):
         if existing:
             return jsonify({"msg": "Phone number already exists for another customer"}), 409
 
-    # Audit log (simple example)
+    # Audit log for updating customer
     print(f"[AUDIT LOG] User {user_id} ({role}) updated customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     db.session.commit()
     return jsonify({"msg": "Customer updated", "customer": format_customer(customer)}), 200
+
+@customers_bp.route("/<int:customer_id>", methods=["DELETE"])
+@jwt_required()
+@role_required(["admin"])
+def delete_customer(customer_id):
+    user_id, role = extract_identity()
+    customer = Customer.query.get_or_404(customer_id)
+
+    if not is_authorized(customer, user_id, role):
+        return jsonify({"msg": "Not authorized to delete this customer"}), 403
+
+    # Audit log for deletion
+    print(f"[AUDIT LOG] User {user_id} ({role}) deleted customer {customer.id} at {datetime.utcnow().isoformat()}.")
+
+    db.session.delete(customer)
+    db.session.commit()
+    return '', 204
 
 @customers_bp.route("/openapi", methods=["GET"])
 def openapi_schema():
@@ -280,6 +308,8 @@ def upload_customer_document(customer_id):
     # Update customer document reference
     customer.documents[doc_type] = file_path
     db.session.commit()
+
+    print(f"[AUDIT LOG] User {user_id} ({role}) uploaded '{doc_type}' for customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
 
