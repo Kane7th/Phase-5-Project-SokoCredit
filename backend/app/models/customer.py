@@ -8,6 +8,7 @@ class Customer(db.Model, SerializerMixin):
     serialize_rules = ('-user.customer',)
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=True)
     full_name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20), unique=True, nullable=False)
     business_name = db.Column(db.String(100))
@@ -15,6 +16,11 @@ class Customer(db.Model, SerializerMixin):
     documents = db.Column(db.JSON, default={})  # e.g. {"id_card": "url", "permit": "url"}
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # agent/admin ID
+    mama_mboga_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), unique=True, nullable=True)
+
+    # Relationships
+    created_by_user = db.relationship("User", foreign_keys=[created_by])
+    mama_mboga_user = db.relationship("User", foreign_keys=[mama_mboga_user_id])
 
     user = db.relationship('User', back_populates='customer')
     

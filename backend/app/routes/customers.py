@@ -19,7 +19,7 @@ def extract_identity():
 
 def is_authorized(customer, user_id, role):
     if role == "mama_mboga":
-        return customer.id == user_id  # mama_mboga can only edit themselves
+        return customer.mama_mboga_user_id == user_id
     return role in ["admin", "lender"] or customer.created_by == user_id
 
 def format_customer(customer):
@@ -73,19 +73,32 @@ def create_customer():
     if Customer.query.filter_by(phone=data["phone"]).first():
         return jsonify({"msg": "Phone number already exists"}), 409
 
-    customer = Customer(
-        full_name=data["full_name"],
-        phone=data["phone"],
-        business_name=data.get("business_name"),
-        location=data.get("location"),
-        documents=data.get("documents", {}),
-        created_by=user_id
-    )
+    # Enforce that mama_mboga can only create their own profile once
+    if role == "mama_mboga":
+        if Customer.query.filter_by(mama_mboga_user_id=user_id).first():
+            return jsonify({"msg": "You already have a profile"}), 409
+        mama_mboga_user_id = user_id
+    else:
+        mama_mboga_user_id = data.get("mama_mboga_user_id")
+        if not mama_mboga_user_id:
+            return jsonify({"msg": "mama_mboga_user_id is required for admin/lender"}), 400
 
-    print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
+    customer_kwargs = {
+        "full_name": data["full_name"],
+        "phone": data["phone"],
+        "business_name": data.get("business_name"),
+        "location": data.get("location"),
+        "documents": data.get("documents", {}),
+        "created_by": user_id,
+        "mama_mboga_user_id": mama_mboga_user_id
+    }
+
+    customer = Customer(**customer_kwargs)
 
     db.session.add(customer)
     db.session.commit()
+
+    print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     return jsonify({"msg": "Customer created", "id": customer.id}), 201
 

@@ -14,7 +14,7 @@ class User(db.Model, SerializerMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='Mama Mboga', nullable=False)  # 'admin', 'mama mboga' or 'lender'
 
-    customer =db.relationship('Customer', back_populates='user', uselist=False, cascade="all, delete-orphan")
+    customer = db.relationship('Customer', back_populates='user', uselist=False)
     loans = db.relationship('Loan', back_populates='borrower', foreign_keys="Loan.borrower_id", cascade="all, delete-orphan")
     issued_loans = db.relationship("Loan", back_populates="lender", foreign_keys="Loan.lender_id")
     repayments = db.relationship("Repayment", back_populates="user", cascade="all, delete-orphan")
