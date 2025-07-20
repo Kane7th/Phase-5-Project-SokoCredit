@@ -63,11 +63,9 @@ def register_user():
     password = data.get("password")
     role = data.get("role", "mama_mboga")
 
-    # Validate required fields
     if not username or not phone or not email or not password:
         return jsonify({"msg": "Username, phone, email, and password are required"}), 400
 
-    # Check for uniqueness
     if User.query.filter_by(username=username).first():
         return jsonify({"msg": "Username already exists"}), 409
     if User.query.filter_by(phone=phone).first():
@@ -75,11 +73,25 @@ def register_user():
     if User.query.filter_by(email=email).first():
         return jsonify({"msg": "Email already exists"}), 409
 
-    # Create and save user
+    # Create User
     user = User(username=username, phone=phone, email=email, role=role)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
+
+    # If mama_mboga, also create associated Customer profile
+    if role == "mama_mboga":
+        from app.models.customer import Customer 
+
+        customer = Customer(
+            full_name=username,
+            phone=phone,
+            email=email,
+            user_id=user.id
+        )
+        db.session.add(customer)
+        db.session.commit()
+        print(f"[AUDIT LOG] Auto-created Customer profile for mama_mboga user {user.id}")
 
     return jsonify({"msg": "User registered", "id": user.id}), 201
 
@@ -87,15 +99,12 @@ def register_user():
 @jwt_required()
 def logout():
     jti = get_jwt()["jti"]
-    # Here you would typically add the JTI to a blacklist which is not implemented in this example
     return jsonify({"msg": "Successfully logged out"}), 200
 
 @auth_bp.route("/logout-all", methods=["POST"])
 @jwt_required()
 @role_required(["admin"])
 def logout_all():
-    # This would typically clear the blacklist or invalidate all tokens for the user
-    # For simplicity, we are not implementing a blacklist in this example
     return jsonify({"msg": "All sessions logged out"}), 200
 
 # Refresh token endpoint for JWT
