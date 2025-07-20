@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, abort
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models import Loan, User, RepaymentSchedule, LoanProduct
@@ -9,6 +9,9 @@ from sqlalchemy.exc import SQLAlchemyError
 loan_bp = Blueprint('loan_bp', __name__, url_prefix='/loans')
 loan_product_bp = Blueprint('loan_product_bp', __name__, url_prefix='/loan-products')
 
+@loan_bp.route('/')
+def index():
+    return jsonify({"message": "SokoCredit Loan running"})
 
 #USER can apply for loan
 @loan_bp.route('', methods=['POST'])
@@ -56,7 +59,7 @@ def apply_loan():
 # Users can view all loans
 @loan_bp.route('', methods=['GET'])
 @jwt_required()
-@role_required('admin', 'lender', 'mama_mboga')
+@role_required(['admin', 'lender', 'mama_mboga'])
 def get_loans():
     try:
         user_id = get_jwt_identity()
@@ -93,7 +96,7 @@ def get_loan_product(id):
 # A lender/admin can create a new loan product
 @loan_product_bp.route('', methods=['POST'])
 @jwt_required()
-@role_required('admin', 'lender')
+@role_required(['admin', 'lender'])
 def create_loan_product():
     try:
         data = request.get_json()
@@ -120,7 +123,7 @@ def create_loan_product():
             duration_months=duration_months,
             frequency=frequency
         )
-        db.session.add(LoanProduct)
+        db.session.add(loan_product)
         db.session.commit()
         return jsonify(loan_product.to_dict()), 200
         
@@ -178,10 +181,10 @@ def delete_loan_product(id):
 
 
 # A lender approves any applied loan.
-@loan_bp.route('/loans/<int:id>/approve', methods=['PATCH'])
+@loan_bp.route('/<int:id>/approve', methods=['PATCH'])
 @jwt_required()
-@role_required()
-def approve_loan():
+@role_required(['admin', 'lender'])
+def approve_loan(id):
     try:
         loan = Loan.query.get_or_404(id)
         
@@ -197,10 +200,10 @@ def approve_loan():
         return jsonify({'error': 'Failed to approve the loan', 'message': str(e)}), 500
     
 # Lender can reject an applied loan
-@loan_bp('/loans/<int:id>/reject', methods=['PATCH'])
+@loan_bp.route('/<int:id>/reject', methods=['PATCH'])
 @jwt_required()
-@role_required()
-def reject_loan():
+@role_required(['admin', 'lender'])
+def reject_loan(id):
     try:
         data = request.get_json()
         rejected_reason = data.get('rejected_reason', '')
@@ -223,7 +226,7 @@ def reject_loan():
 # Lender/admin can disburse loans after approval
 @loan_bp.route('/loans/<int:id>/disburse', methods=['PATCH'])
 @jwt_required()
-@role_required()
+@role_required(['admin', 'lender'])
 def disburse_loan(id):
     try:
         loan = Loan.query.get_or_404(id)

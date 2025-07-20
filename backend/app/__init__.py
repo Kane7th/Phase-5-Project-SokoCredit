@@ -2,7 +2,6 @@ import os
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from .extensions import db, migrate, jwt
-from app.routes.auth import auth_bp
 from app.models import User, Customer, Loan, LoanProduct, Repayment, RepaymentSchedule
 
 
@@ -17,10 +16,15 @@ def create_app(config="config.default_config.DefaultConfig"):
     jwt.init_app(app)
 
     from app.routes.customers import customers_bp
-
+    from app.routes.auth import auth_bp
+    from app.routes.loan_routes import loan_bp, loan_product_bp
+    
+    
     # Register Blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(customers_bp, url_prefix='/customers')
+    app.register_blueprint(loan_bp)
+    app.register_blueprint(loan_product_bp)
 
     # Error handlers
     @app.errorhandler(413)
