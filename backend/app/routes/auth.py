@@ -79,20 +79,20 @@ def register_user():
     db.session.add(user)
     db.session.commit()
 
-    # If mama_mboga, also create associated Customer profile
+    print(f"[AUDIT LOG] Registered user {user.id} ({role})")
+
+    # If mama_mboga, prompt to complete customer profile
     if role == "mama_mboga":
-        from app.models.customer import Customer 
+        return jsonify({
+            "msg": "Mama Mboga registered. Please complete your customer profile.",
+            "user_id": user.id,
+            "next": "/customers/"
+        }), 201
 
-        customer = Customer(
-            full_name=username,
-            phone=phone,
-            mama_mboga_user_id=user.id
-        )
-        db.session.add(customer)
-        db.session.commit()
-        print(f"[AUDIT LOG] Auto-created Customer profile for mama_mboga user {user.id}")
-
-    return jsonify({"msg": "User registered", "id": user.id}), 201
+    return jsonify({
+        "msg": "User registered successfully.",
+        "user_id": user.id
+    }), 201
 
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
