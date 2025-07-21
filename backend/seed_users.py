@@ -35,7 +35,7 @@ with app.app_context():
         ).first()
 
         if existing:
-            skipped.append(u["username"])
+            skipped.append(u)
         else:
             user = User(
                 username=u["username"],
@@ -45,12 +45,22 @@ with app.app_context():
             )
             user.set_password("password")
             db.session.add(user)
-            created.append(u["username"])
+            created.append(u)
 
     db.session.commit()
 
-    if created:
-        print(f"✅ Created users: {', '.join(created)}")
-    if skipped:
-        print(f"⚠️  Skipped (already exist): {', '.join(skipped)}")
+    print("\n--- 🧪 SokoCredit Test Users ---\n")
 
+    if created:
+        print("✅ Created Users:")
+        for u in created:
+            print(f"  👤 {u['role'].title()}: {u['email']} / password")
+    else:
+        print("✅ No new users created.")
+
+    if skipped:
+        print("\n⚠️ Skipped (already exist):")
+        for u in skipped:
+            print(f"  🔁 {u['role'].title()}: {u['email']}")
+
+    print("\n📝 Default password for all users: 'password'\n")
