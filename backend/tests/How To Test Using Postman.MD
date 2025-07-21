@@ -23,15 +23,21 @@ Body (JSON) (as lender/admin):
   "phone": "0712345678",
   "business_name": "Mama Wanjiku Groceries",
   "location": "Kariobangi",
+  "documents": {
+    "id_card": "local/path/to/id.jpg"
+  }
   "mama_mboga_user_id": 3
 }
 
 As mama_mboga (self-registration):
 {
-  "full_name": "Jane Mboga",
-  "phone": "0799999999",
-  "business_name": "Jane's Veggies",
-  "location": "Kibera"
+  "full_name": "Jane Kabena",
+  "phone": "0711222123",
+  "business_name": "Kane's Kiosk",
+  "location": "Ruaka",
+  "documents": {
+    "id_card": "local/path/to/id.jpg"
+  }
 }
 ✅ Expect 201 Created
 🧪 Test edge case: duplicate phone

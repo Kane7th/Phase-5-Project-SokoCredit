@@ -54,7 +54,7 @@ def get_profile():
 
 @auth_bp.route("/register", methods=["POST"])
 @jwt_required()
-@role_required(["admin", "lender"])
+@role_required(["admin", "lender", "mama_mboga"])
 def register_user():
     data = request.get_json()
     username = data.get("username")
@@ -86,8 +86,7 @@ def register_user():
         customer = Customer(
             full_name=username,
             phone=phone,
-            email=email,
-            user_id=user.id
+            mama_mboga_user_id=user.id
         )
         db.session.add(customer)
         db.session.commit()
