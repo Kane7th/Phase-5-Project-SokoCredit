@@ -33,51 +33,51 @@ const Sidebar = () => {
     return location.pathname === path || location.pathname.startsWith(path + '/')
   }
 
-  // Admin Navigation Items
-  const adminMenuItems = [
-    {
-      title: 'Dashboard',
-      icon: Home,
-      path: '/dashboard',
-      badge: null
-    },
-    {
-      title: 'Lender Management',
-      icon: UserCheck,
-      path: '/admin/lenders',
-      badge: '8 pending'
-    },
-    {
-      title: 'System Analytics',
-      icon: BarChart3,
-      path: '/admin/analytics',
-      badge: null
-    },
-    {
-      title: 'Customer Overview',
-      icon: Users,
-      path: '/admin/customers',
-      badge: null
-    },
-    {
-      title: 'Loan Portfolio',
-      icon: DollarSign,
-      path: '/admin/loans',
-      badge: null
-    },
-    {
-      title: 'Reports',
-      icon: FileText,
-      path: '/admin/reports',
-      badge: null
-    },
-    {
-      title: 'System Settings',
-      icon: Settings,
-      path: '/admin/settings',
-      badge: null
-    }
-  ]
+    // Admin Navigation Items
+    const adminMenuItems = [
+      {
+        title: 'Dashboard',
+        icon: Home,
+        path: '/dashboard',
+        badge: null
+      },
+      {
+        title: 'Lender Management',
+        icon: UserCheck,
+        path: '/dashboard/admin/lenders',
+        badge: '8 pending'
+      },
+      {
+        title: 'System Analytics',
+        icon: BarChart3,
+        path: '/dashboard/admin/analytics',
+        badge: null
+      },
+      {
+        title: 'Customer Overview',
+        icon: Users,
+        path: '/dashboard/admin/customers',
+        badge: null
+      },
+      {
+        title: 'Loan Portfolio',
+        icon: DollarSign,
+        path: '/dashboard/admin/loans',
+        badge: null
+      },
+      {
+        title: 'Reports',
+        icon: FileText,
+        path: '/dashboard/admin/reports',
+        badge: null
+      },
+      {
+        title: 'System Settings',
+        icon: Settings,
+        path: '/dashboard/admin/settings',
+        badge: null
+      }
+    ]
 
   // Lender Navigation Items
   const lenderMenuItems = [
@@ -90,53 +90,53 @@ const Sidebar = () => {
     {
       title: 'My Customers',
       icon: Users,
-      path: '/lender/customers',
+      path: '/dashboard/customer',
       badge: '2 new',
       submenu: [
-        { title: 'All Customers', path: '/lender/customers' },
-        { title: 'Add Customer', path: '/lender/customers/new' },
-        { title: 'Customer Import', path: '/lender/customers/import' }
+        { title: 'All Customers', path: '/dashboard/customer' },
+        { title: 'Add Customer', path: '/dashboard/customer/new' },
+        { title: 'Customer Import', path: '/dashboard/customer/import' }
       ]
     },
     {
       title: 'Loan Management',
       icon: DollarSign,
-      path: '/lender/loans',
+      path: '/dashboard/customer/loans',
       badge: '5 pending',
       submenu: [
-        { title: 'All Loans', path: '/lender/loans' },
-        { title: 'New Application', path: '/lender/loans/new' },
-        { title: 'Pending Approval', path: '/lender/loans/pending' },
-        { title: 'Active Loans', path: '/lender/loans/active' }
+        { title: 'All Loans', path: '/dashboard/customer/loans' },
+        { title: 'New Application', path: '/dashboard/customer/loans/new' },
+        { title: 'Pending Approval', path: '/dashboard/customer/loans/pending' },
+        { title: 'Active Loans', path: '/dashboard/customer/loans/active' }
       ]
     },
     {
       title: 'Payment Collection',
       icon: CreditCard,
-      path: '/lender/payments',
+      path: '/dashboard/customer/payments',
       badge: '3 overdue',
       submenu: [
-        { title: 'Today\'s Collections', path: '/lender/payments/today' },
-        { title: 'Payment History', path: '/lender/payments/history' },
-        { title: 'Overdue Payments', path: '/lender/payments/overdue' }
+        { title: 'Today\'s Collections', path: '/dashboard/customer/payments/today' },
+        { title: 'Payment History', path: '/dashboard/customer/payments/history' },
+        { title: 'Overdue Payments', path: '/dashboard/customer/payments/overdue' }
       ]
     },
     {
       title: 'Performance',
       icon: TrendingUp,
-      path: '/lender/performance',
+      path: '/dashboard/customer/performance',
       badge: null
     },
     {
       title: 'Schedule',
       icon: Calendar,
-      path: '/lender/schedule',
+      path: '/dashboard/customer/schedule',
       badge: '6 today'
     },
     {
       title: 'Mobile Tools',
       icon: Smartphone,
-      path: '/lender/mobile',
+      path: '/dashboard/customer/mobile',
       badge: null
     }
   ]
@@ -152,46 +152,46 @@ const Sidebar = () => {
     {
       title: 'My Loans',
       icon: DollarSign,
-      path: '/customer/loans',
+      path: '/dashboard/customer/loans',
       badge: '1 active',
       submenu: [
-        { title: 'Current Loans', path: '/customer/loans/current' },
-        { title: 'Apply for Loan', path: '/customer/loans/apply' },
-        { title: 'Loan History', path: '/customer/loans/history' }
+        { title: 'Current Loans', path: '/dashboard/customer/loans/current' },
+        { title: 'Apply for Loan', path: '/dashboard/customer/loans/apply' },
+        { title: 'Loan History', path: '/dashboard/customer/loans/history' }
       ]
     },
     {
       title: 'Payments',
       icon: CreditCard,
-      path: '/customer/payments',
+      path: '/dashboard/customer/payments',
       badge: 'Due tomorrow',
       submenu: [
-        { title: 'Make Payment', path: '/customer/payments/pay' },
-        { title: 'Payment History', path: '/customer/payments/history' },
-        { title: 'Payment Methods', path: '/customer/payments/methods' }
+        { title: 'Make Payment', path: '/dashboard/customer/payments/pay' },
+        { title: 'Payment History', path: '/dashboard/customer/payments/history' },
+        { title: 'Payment Methods', path: '/dashboard/customer/payments/methods' }
       ]
     },
     {
       title: 'My Business',
       icon: Building,
-      path: '/customer/business',
+      path: '/dashboard/customer/business',
       badge: null,
       submenu: [
-        { title: 'Business Profile', path: '/customer/business/profile' },
-        { title: 'Financial Records', path: '/customer/business/records' },
-        { title: 'Growth Tips', path: '/customer/business/tips' }
+        { title: 'Business Profile', path: '/dashboard/customer/business/profile' },
+        { title: 'Financial Records', path: '/dashboard/customer/business/records' },
+        { title: 'Growth Tips', path: '/dashboard/customer/business/tips' }
       ]
     },
     {
       title: 'Documents',
       icon: FileText,
-      path: '/customer/documents',
+      path: '/dashboard/customer/documents',
       badge: null
     },
     {
       title: 'Support',
       icon: HelpCircle,
-      path: '/customer/support',
+      path: '/dashboard/customer/support',
       badge: null
     }
   ]
@@ -201,7 +201,7 @@ const Sidebar = () => {
       case 'admin':
         return adminMenuItems
       case 'loan_officer':
-      case 'agent':
+      case 'mamaMboga':
         return lenderMenuItems
       case 'customer':
         return customerMenuItems
@@ -297,7 +297,7 @@ const Sidebar = () => {
           <MenuSection items={menuItems} />
 
           {/* Quick Actions for Lenders */}
-          {(user?.role === 'loan_officer' || user?.role === 'agent') && !collapsed && (
+          {(user?.role === 'loan_officer' || user?.role === 'mamaMboga') && !collapsed && (
             <div className="quick-actions-sidebar">
               <div className="section-title">Quick Actions</div>
               <div className="quick-action-buttons">
@@ -339,34 +339,34 @@ const Sidebar = () => {
           )}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="sidebar-footer">
-          {!collapsed && (
-            <div className="user-summary">
-              <div className="user-role-indicator">
-                {user?.role === 'admin' && '👑 Admin'}
-                {(user?.role === 'loan_officer' || user?.role === 'agent') && '💼 Lender'}
-                {user?.role === 'customer' && '🛒 Business Owner'}
-              </div>
-              {(user?.role === 'loan_officer' || user?.role === 'agent') && (
-                <div className="performance-indicator">
-                  <div className="performance-item">
-                    <span>Collections</span>
-                    <span className="performance-value">94.2%</span>
-                  </div>
+          {/* Sidebar Footer */}
+          <div className="sidebar-footer">
+            {!collapsed && (
+              <div className="user-summary">
+                <div className="user-role-indicator">
+                  {user?.role === 'admin' && '👑 Admin'}
+                  {(user?.role === 'loan_officer' || user?.role === 'mamaMboga') && '💼 Lender'}
+                  {user?.role === 'customer' && '🛒 Business Owner'}
                 </div>
-              )}
-            </div>
-          )}
-          
-          <button 
-            className="collapse-button"
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </button>
-        </div>
-      </aside>
+                {(user?.role === 'loan_officer' || user?.role === 'mamaMboga') && (
+                  <div className="performance-indicator">
+                    <div className="performance-item">
+                      <span>Collections</span>
+                      <span className="performance-value">94.2%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <button 
+              className="collapse-button"
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            </button>
+          </div>
+        </aside>
 
       {/* Mobile Sidebar Backdrop */}
       <div className="sidebar-backdrop" onClick={() => setCollapsed(true)} />

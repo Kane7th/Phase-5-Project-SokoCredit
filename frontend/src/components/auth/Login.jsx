@@ -63,7 +63,7 @@ const Login = () => {
   const demoAccounts = [
     { role: 'Admin', username: 'admin@sokocredit.com', password: 'admin123' },
     { role: 'Loan Officer', username: 'officer@sokocredit.com', password: 'officer123' },
-    { role: 'Agent', username: 'agent@sokocredit.com', password: 'agent123' },
+    { role: 'Customer', username: 'customer@sokocredit.com', password: 'customer123' },
   ]
 
   const fillDemoAccount = (account) => {
@@ -226,7 +226,7 @@ const Login = () => {
               Don't have an account?{' '}
             </span>
             <Link to="/register" className="forgot-password">
-              Register 
+              Register as Lender
             </Link>
           </div>
         </form>
