@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Eye, EyeOff, Phone, Mail, Lock } from 'lucide-react'
-import jwtDecode from 'jwt-decode'
+import { jwtDecode } from 'jwt-decode'
 import { loginUser, clearError, setUserInfo } from '../../store/authSlice'
 import LoadingSpinner from '../common/LoadingSpinner'
 import '../../styles/auth.css'
@@ -52,14 +52,10 @@ const Login = () => {
           role = 'admin'
         }
 
-        // Save to localStorage
         localStorage.setItem('user_id', userId)
         localStorage.setItem('user_role', role)
-
-        // Push to Redux (optional)
         dispatch(setUserInfo({ user_id: userId, role }))
 
-        // Redirect based on role
         switch (role) {
           case 'admin':
             navigate('/dashboard/admin')

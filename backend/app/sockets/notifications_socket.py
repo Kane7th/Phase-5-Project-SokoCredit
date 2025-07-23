@@ -1,6 +1,7 @@
 from flask_jwt_extended import decode_token
 from flask_socketio import Namespace, emit, join_room, disconnect
 from app import socketio
+from app.extensions import socketio
 
 class NotificationNamespace(Namespace):
     def on_connect(self):
