@@ -23,7 +23,7 @@ const Login = () => {
     setValue
   } = useForm()
 
-  const watchedIdentifier = watch('identifier')
+  const watchedCredential = watch('credential')
 
   useEffect(() => {
     if (isAuthenticated && token) {
@@ -41,7 +41,7 @@ const Login = () => {
             role = 'mama_mboga'
           } else if (identity.includes(':')) {
             const [id, r] = identity.split(':')
-            userId = parseInt(id)
+            userId = parseInt(id.replace('user_', ''))
             role = r
           } else {
             userId = parseInt(identity)
@@ -81,23 +81,22 @@ const Login = () => {
   }, [dispatch])
 
   useEffect(() => {
-    if (watchedIdentifier) {
+    if (watchedCredential) {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       const phonePattern = /^[+]?[\d\s-()]+$/
 
-      if (emailPattern.test(watchedIdentifier)) {
+      if (emailPattern.test(watchedCredential)) {
         setLoginType('email')
-      } else if (phonePattern.test(watchedIdentifier)) {
+      } else if (phonePattern.test(watchedCredential)) {
         setLoginType('phone')
       }
     }
-  }, [watchedIdentifier])
+  }, [watchedCredential])
 
   const onSubmit = (data) => {
     const credentials = {
-      identifier: data.identifier.trim(),
-      password: data.password,
-      login_type: loginType
+      credential: data.credential.trim(),
+      password: data.password
     }
 
     dispatch(loginUser(credentials))
@@ -110,7 +109,7 @@ const Login = () => {
   ]
 
   const fillDemoAccount = (account) => {
-    setValue('identifier', account.username)
+    setValue('credential', account.username)
     setValue('password', account.password)
     setLoginType('email')
   }
@@ -136,9 +135,9 @@ const Login = () => {
             </label>
             <input
               type="text"
-              className={`form-input ${errors.identifier ? 'error' : ''}`}
+              className={`form-input ${errors.credential ? 'error' : ''}`}
               placeholder="Enter your email or phone number"
-              {...register('identifier', {
+              {...register('credential', {
                 required: 'Email or phone number is required',
                 validate: (value) => {
                   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -150,7 +149,7 @@ const Login = () => {
                 }
               })}
             />
-            {errors.identifier && <div className="text-error">{errors.identifier.message}</div>}
+            {errors.credential && <div className="text-error">{errors.credential.message}</div>}
           </div>
 
           <div className="form-group">
