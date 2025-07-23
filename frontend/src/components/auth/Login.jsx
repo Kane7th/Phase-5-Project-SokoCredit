@@ -26,6 +26,23 @@ const Login = () => {
   const watchedCredential = watch('credential')
 
   useEffect(() => {
+    // Clear error on component unmount
+    return () => dispatch(clearError())
+  }, [dispatch])
+
+  useEffect(() => {
+    if (watchedCredential) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const phonePattern = /^[+]?[\d\s-()]+$/
+      if (emailPattern.test(watchedCredential)) {
+        setLoginType('email')
+      } else if (phonePattern.test(watchedCredential)) {
+        setLoginType('phone')
+      }
+    }
+  }, [watchedCredential])
+
+  useEffect(() => {
     if (isAuthenticated && token) {
       try {
         const decoded = jwtDecode(token)
@@ -52,10 +69,14 @@ const Login = () => {
           role = 'admin'
         }
 
+        if (!role) throw new Error('Invalid role in token')
+
+        // Save in localStorage + Redux
         localStorage.setItem('user_id', userId)
         localStorage.setItem('user_role', role)
         dispatch(setUserInfo({ user_id: userId, role }))
 
+        // Redirect based on role
         switch (role) {
           case 'admin':
             navigate('/dashboard/admin')
@@ -71,41 +92,24 @@ const Login = () => {
             navigate('/dashboard')
         }
       } catch (err) {
-        console.error('Invalid token:', err)
+        console.error('Token decode failed:', err)
+        navigate('/login')
       }
     }
   }, [isAuthenticated, token, navigate, dispatch])
-
-  useEffect(() => {
-    return () => dispatch(clearError())
-  }, [dispatch])
-
-  useEffect(() => {
-    if (watchedCredential) {
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      const phonePattern = /^[+]?[\d\s-()]+$/
-
-      if (emailPattern.test(watchedCredential)) {
-        setLoginType('email')
-      } else if (phonePattern.test(watchedCredential)) {
-        setLoginType('phone')
-      }
-    }
-  }, [watchedCredential])
 
   const onSubmit = (data) => {
     const credentials = {
       credential: data.credential.trim(),
       password: data.password
     }
-
     dispatch(loginUser(credentials))
   }
 
   const demoAccounts = [
     { role: 'Admin', username: 'admin@sokocredit.com', password: 'admin123' },
     { role: 'Loan Officer', username: 'officer@sokocredit.com', password: 'officer123' },
-    { role: 'Customer', username: 'customer@sokocredit.com', password: 'customer123' },
+    { role: 'Customer', username: 'customer@sokocredit.com', password: 'customer123' }
   ]
 
   const fillDemoAccount = (account) => {
@@ -128,7 +132,7 @@ const Login = () => {
 
           <div className="form-group">
             <label className="form-label">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="flex items-center gap-2">
                 {loginType === 'email' ? <Mail size={16} /> : <Phone size={16} />}
                 Email or Phone Number
               </div>
@@ -154,7 +158,7 @@ const Login = () => {
 
           <div className="form-group">
             <label className="form-label">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="flex items-center gap-2">
                 <Lock size={16} />
                 Password
               </div>
@@ -180,10 +184,10 @@ const Login = () => {
             {errors.password && <div className="text-error">{errors.password.message}</div>}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0' }}>
+          <div className="flex justify-between items-center my-4">
             <div className="form-checkbox-wrapper">
               <input type="checkbox" id="remember" className="form-checkbox" {...register('remember')} />
-              <label htmlFor="remember" style={{ fontSize: '14px', color: 'var(--gray-600)' }}>
+              <label htmlFor="remember" className="text-sm text-gray-600">
                 Remember me
               </label>
             </div>
@@ -194,28 +198,21 @@ const Login = () => {
             {isLoading ? (
               <>
                 <LoadingSpinner size="sm" />
-                <span style={{ marginLeft: '8px' }}>Signing in...</span>
+                <span className="ml-2">Signing in...</span>
               </>
             ) : (
               'Sign In'
             )}
           </button>
 
-          <div className="demo-accounts">
+          <div className="demo-accounts mt-4">
             <div className="demo-title">Demo Accounts:</div>
             {demoAccounts.map((account, index) => (
               <div key={index} className="demo-account">
                 <button
                   type="button"
                   onClick={() => fillDemoAccount(account)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary-blue)',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
+                  className="text-xs text-blue-600 underline cursor-pointer"
                 >
                   {account.role}: {account.username}
                 </button>
@@ -223,10 +220,8 @@ const Login = () => {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: '24px' }}>
-            <span style={{ color: 'var(--gray-500)', fontSize: '14px' }}>
-              Don't have an account?{' '}
-            </span>
+          <div className="text-center mt-6 text-sm text-gray-500">
+            Don’t have an account?{' '}
             <Link to="/register" className="forgot-password">Register as Lender</Link>
           </div>
         </form>
