@@ -26,7 +26,6 @@ const Login = () => {
   const watchedCredential = watch('credential')
 
   useEffect(() => {
-    // Clear error on component unmount
     return () => dispatch(clearError())
   }, [dispatch])
 
@@ -71,12 +70,10 @@ const Login = () => {
 
         if (!role) throw new Error('Invalid role in token')
 
-        // Save in localStorage + Redux
         localStorage.setItem('user_id', userId)
         localStorage.setItem('user_role', role)
         dispatch(setUserInfo({ user_id: userId, role }))
 
-        // Redirect based on role
         switch (role) {
           case 'admin':
             navigate('/dashboard/admin')
@@ -107,9 +104,9 @@ const Login = () => {
   }
 
   const demoAccounts = [
-    { role: 'Admin', username: 'admin@sokocredit.com', password: 'admin123' },
-    { role: 'Loan Officer', username: 'officer@sokocredit.com', password: 'officer123' },
-    { role: 'Customer', username: 'customer@sokocredit.com', password: 'customer123' }
+    { role: 'Admin', username: 'admin@sokocredit.com', password: 'password' },
+    { role: 'Loan Officer', username: 'lender1@sokocredit.com', password: 'password' },
+    { role: 'Customer', username: 'mama1@sokocredit.com', password: 'password' }
   ]
 
   const fillDemoAccount = (account) => {
