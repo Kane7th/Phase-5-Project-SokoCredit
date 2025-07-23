@@ -1,5 +1,6 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import LandingPage from './components/landing/LandingPage'
 import Login from './components/auth/Login'
 import Register from './components/auth/Register'
@@ -9,17 +10,12 @@ import Layout from './components/common/Layout'
 import NotificationListener from './components/NotificationListener'
 
 function App() {
-  const token = localStorage.getItem('access_token')
-  const userId = localStorage.getItem('user_id')
-  const role = localStorage.getItem('user_role')
-
-  const isAuthenticated = token && userId && role
+  const { isAuthenticated, user_id, role, token } = useSelector((state) => state.auth)
 
   return (
     <div className="App">
-      {/* Global socket listener */}
-      {isAuthenticated && (
-        <NotificationListener token={token} userId={userId} />
+      {isAuthenticated && token && user_id && role && (
+        <NotificationListener token={token} userId={user_id} />
       )}
 
       <Routes>
