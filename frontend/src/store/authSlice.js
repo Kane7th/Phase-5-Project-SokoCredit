@@ -2,11 +2,11 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
 
-// ✅ Fallback-safe import for jwt-decode
+// Fallback-safe import for jwt-decode
 import * as jwt_decode from 'jwt-decode'
 const jwtDecode = jwt_decode.default || jwt_decode
 
-// 🔧 Global utility to parse user ID and role from JWT
+// Parse user_id and role from JWT
 export const parseJwt = (token) => {
   try {
     const decoded = jwtDecode(token)
@@ -30,13 +30,12 @@ export const parseJwt = (token) => {
   }
 }
 
-// 🔐 Login
+// Login
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials)
-
       const { access_token, refresh_token } = response
       const { user_id, role } = parseJwt(access_token)
 
@@ -46,14 +45,23 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem('user_id', user_id)
       localStorage.setItem('user_role', role)
 
-      return { ...response, user_id, role }
+      // ✅ Get user details via /auth/me (auto uses token via axios interceptor)
+      const user = await authService.getCurrentUser()
+
+      return {
+        access_token,
+        refresh_token,
+        user_id,
+        role,
+        user,
+      }
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || 'Login failed')
     }
   }
 )
 
-// 📝 Register
+// Register
 export const registerUser = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
@@ -66,7 +74,7 @@ export const registerUser = createAsyncThunk(
   }
 )
 
-// 👤 Fetch Current User
+// Fetch Current User
 export const getCurrentUser = createAsyncThunk(
   'auth/getCurrentUser',
   async (_, { rejectWithValue }) => {
