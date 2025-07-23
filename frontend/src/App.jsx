@@ -8,6 +8,8 @@ import DashboardRouter from './components/dashboard/DashboardRouter'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Layout from './components/common/Layout'
 import NotificationListener from './components/NotificationListener'
+import ProfilePage from './components/customer/ProfilePage'
+import Settings from './components/common/Settings'
 
 function App() {
   const { isAuthenticated, user_id, role, token } = useSelector((state) => state.auth)
@@ -28,13 +30,31 @@ function App() {
         <Route
           path="/dashboard/*"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer']}>
+            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer', 'Mama Mboga']}>
               <Layout />
             </ProtectedRoute>
           }
         >
           <Route path="*" element={<DashboardRouter />} />
         </Route>
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer', 'Mama Mboga']}>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer', 'Mama Mboga']}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
