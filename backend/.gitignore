@@ -1,0 +1,27 @@
+# Python-related
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+*.pyc
+
+# Env files
+.env
+*.env
+
+# Virtual environments
+venv/
+env/
+
+# # Flask and migration logs
+# instance/
+# migrations/
+
+# OS-specific
+.DS_Store
+
+# VS Code settings (optional)
+.vscode/
+
+*.pyc
+__pycache__/
