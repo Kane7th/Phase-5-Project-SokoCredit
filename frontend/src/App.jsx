@@ -6,10 +6,7 @@ import Register from './components/auth/Register'
 import DashboardRouter from './components/dashboard/DashboardRouter'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Layout from './components/common/Layout'
-
 import NotificationListener from './components/NotificationListener'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
 
 function App() {
   const token = localStorage.getItem('access_token')
@@ -20,11 +17,10 @@ function App() {
 
   return (
     <div className="App">
-      {/* Global toast & socket listener */}
+      {/* Global socket listener */}
       {isAuthenticated && (
         <NotificationListener token={token} userId={userId} />
       )}
-      <ToastContainer position="top-right" theme="dark" />
 
       <Routes>
         {/* Public Routes */}
