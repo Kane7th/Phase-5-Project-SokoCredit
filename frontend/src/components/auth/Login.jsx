@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { Eye, EyeOff, User, Phone, Mail, Lock } from 'lucide-react'
-import { loginUser, clearError } from '../../store/authSlice'
+import { Eye, EyeOff, Phone, Mail, Lock } from 'lucide-react'
+import jwtDecode from 'jwt-decode'
+import { loginUser, clearError, setUserInfo } from '../../store/authSlice'
 import LoadingSpinner from '../common/LoadingSpinner'
 import '../../styles/auth.css'
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
-  const [loginType, setLoginType] = useState('email') // 'email' or 'phone'
+  const [loginType, setLoginType] = useState('email')
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { isLoading, isAuthenticated, error } = useSelector((state) => state.auth)
+  const { isLoading, isAuthenticated, error, token } = useSelector((state) => state.auth)
 
   const {
     register,
@@ -25,23 +26,69 @@ const Login = () => {
   const watchedIdentifier = watch('identifier')
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard')
+    if (isAuthenticated && token) {
+      try {
+        const decoded = jwtDecode(token)
+        const identity = decoded.sub || decoded.identity
+        let userId, role
+
+        if (typeof identity === 'string') {
+          if (identity.startsWith('customer_')) {
+            userId = parseInt(identity.replace('customer_', ''))
+            role = 'customer'
+          } else if (identity.startsWith('mama_mboga_')) {
+            userId = parseInt(identity.replace('mama_mboga_', ''))
+            role = 'mama_mboga'
+          } else if (identity.includes(':')) {
+            const [id, r] = identity.split(':')
+            userId = parseInt(id)
+            role = r
+          } else {
+            userId = parseInt(identity)
+            role = 'user'
+          }
+        } else if (typeof identity === 'number') {
+          userId = identity
+          role = 'admin'
+        }
+
+        // Save to localStorage
+        localStorage.setItem('user_id', userId)
+        localStorage.setItem('user_role', role)
+
+        // Push to Redux (optional)
+        dispatch(setUserInfo({ user_id: userId, role }))
+
+        // Redirect based on role
+        switch (role) {
+          case 'admin':
+            navigate('/dashboard/admin')
+            break
+          case 'lender':
+            navigate('/dashboard/lender')
+            break
+          case 'customer':
+          case 'mama_mboga':
+            navigate('/dashboard/customer')
+            break
+          default:
+            navigate('/dashboard')
+        }
+      } catch (err) {
+        console.error('Invalid token:', err)
+      }
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, token, navigate, dispatch])
 
   useEffect(() => {
-    return () => {
-      dispatch(clearError())
-    }
+    return () => dispatch(clearError())
   }, [dispatch])
 
-  // Auto-detect if user is typing email or phone
   useEffect(() => {
     if (watchedIdentifier) {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       const phonePattern = /^[+]?[\d\s-()]+$/
-      
+
       if (emailPattern.test(watchedIdentifier)) {
         setLoginType('email')
       } else if (phonePattern.test(watchedIdentifier)) {
@@ -56,7 +103,7 @@ const Login = () => {
       password: data.password,
       login_type: loginType
     }
-    
+
     dispatch(loginUser(credentials))
   }
 
@@ -75,27 +122,15 @@ const Login = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        {/* Header */}
         <div className="auth-header">
-          <div className="auth-logo">
-            💰
-          </div>
+          <div className="auth-logo">💰</div>
           <h1 className="auth-title">Welcome to SokoCredit</h1>
-          <p className="auth-subtitle">
-            Microfinance loan management system
-          </p>
+          <p className="auth-subtitle">Microfinance loan management system</p>
         </div>
 
-        {/* Form */}
         <form className="auth-form" onSubmit={handleSubmit(onSubmit)}>
-          {/* Error Message */}
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
-          {/* Login Identifier */}
           <div className="form-group">
             <label className="form-label">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -109,14 +144,9 @@ const Login = () => {
               placeholder="Enter your email or phone number"
               {...register('identifier', {
                 required: 'Email or phone number is required',
-                minLength: {
-                  value: 3,
-                  message: 'Must be at least 3 characters',
-                },
                 validate: (value) => {
                   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
                   const phonePattern = /^[+]?[0-9\s-()]{10,}$/
-                  
                   if (!emailPattern.test(value) && !phonePattern.test(value)) {
                     return 'Please enter a valid email or phone number'
                   }
@@ -124,12 +154,9 @@ const Login = () => {
                 }
               })}
             />
-            {errors.identifier && (
-              <div className="text-error">{errors.identifier.message}</div>
-            )}
+            {errors.identifier && <div className="text-error">{errors.identifier.message}</div>}
           </div>
 
-          {/* Password */}
           <div className="form-group">
             <label className="form-label">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -144,10 +171,7 @@ const Login = () => {
                 placeholder="Enter your password"
                 {...register('password', {
                   required: 'Password is required',
-                  minLength: {
-                    value: 6,
-                    message: 'Password must be at least 6 characters',
-                  },
+                  minLength: { value: 6, message: 'Password must be at least 6 characters' }
                 })}
               />
               <button
@@ -158,35 +182,20 @@ const Login = () => {
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
-            {errors.password && (
-              <div className="text-error">{errors.password.message}</div>
-            )}
+            {errors.password && <div className="text-error">{errors.password.message}</div>}
           </div>
 
-          {/* Remember Me & Forgot Password */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0' }}>
             <div className="form-checkbox-wrapper">
-              <input
-                type="checkbox"
-                id="remember"
-                className="form-checkbox"
-                {...register('remember')}
-              />
+              <input type="checkbox" id="remember" className="form-checkbox" {...register('remember')} />
               <label htmlFor="remember" style={{ fontSize: '14px', color: 'var(--gray-600)' }}>
                 Remember me
               </label>
             </div>
-            <a href="#" className="forgot-password">
-              Forgot password?
-            </a>
+            <a href="#" className="forgot-password">Forgot password?</a>
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn btn-primary w-full"
-          >
+          <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
             {isLoading ? (
               <>
                 <LoadingSpinner size="sm" />
@@ -197,7 +206,6 @@ const Login = () => {
             )}
           </button>
 
-          {/* Demo Accounts */}
           <div className="demo-accounts">
             <div className="demo-title">Demo Accounts:</div>
             {demoAccounts.map((account, index) => (
@@ -220,14 +228,11 @@ const Login = () => {
             ))}
           </div>
 
-          {/* Register Link */}
           <div style={{ textAlign: 'center', marginTop: '24px' }}>
             <span style={{ color: 'var(--gray-500)', fontSize: '14px' }}>
               Don't have an account?{' '}
             </span>
-            <Link to="/register" className="forgot-password">
-              Register as Lender
-            </Link>
+            <Link to="/register" className="forgot-password">Register as Lender</Link>
           </div>
         </form>
       </div>
