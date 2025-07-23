@@ -11,7 +11,7 @@ class RepaymentStatus(pyEnum):
 class RepaymentSchedule(db.Model, SerializerMixin):
     __tablename__ = 'repayment_schedules'
 
-    serialize_rules = ('-loan.repayment_schedules', '-repayments.schedule')
+    serialize_rules = ('-loan', '-repayments.schedule')
 
     id = db.Column(db.Integer, primary_key=True)
     loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)

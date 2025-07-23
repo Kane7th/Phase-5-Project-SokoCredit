@@ -1,10 +1,14 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.extensions import db
-from app.models import Loan, User, RepaymentSchedule, LoanProduct
-from utils.decorators import role_required
 from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
+
+from app.extensions import db
+from app.models import Loan, User, RepaymentSchedule, LoanProduct
+from app.models.loan import LoanStatus
+from app.models.loan_products import RepaymentFrequencies
+from utils.decorators import role_required
+
 
 loan_bp = Blueprint('loan_bp', __name__, url_prefix='/loans')
 loan_product_bp = Blueprint('loan_product_bp', __name__, url_prefix='/loan-products')
@@ -33,17 +37,25 @@ def apply_loan():
         if not isinstance(duration, int) or duration <=0:
             return jsonify({'error': 'Duration must be a positive number.'}), 400
         
-        borrower_id = get_jwt_identity()
+        borrower_id = int(get_jwt_identity().split(':')[0])
+        
         lender = User.query.filter_by(role='lender').first()
         if not lender:
             return jsonify({'error': 'No available lender'}), 503
         
+        # Attach a loan to a loan product
+        loan_product = LoanProduct.query.first()
+        if not loan_product:
+            return jsonify({'error': 'No loan products available'}), 400
+    
         new_loan = Loan(
             amount=amount,
             interest_rate=interest,
             duration_months=duration,
             borrower_id=borrower_id,
-            status='pending'
+            status='pending',
+            lender_id=lender.id,
+            loan_product_id=loan_product.id
         )
         db.session.add(new_loan)
         db.session.commit()
@@ -62,7 +74,7 @@ def apply_loan():
 @role_required(['admin', 'lender', 'mama_mboga'])
 def get_loans():
     try:
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity().split(':')[0])
         user = User.query.get(user_id)
         
         if user.role in ['admin', 'lender']:
@@ -92,7 +104,6 @@ def get_loan_product(id):
         return jsonify({'error': 'Loan product not found'}), 404
     return jsonify(product.to_dict()), 200
 
-
 # A lender/admin can create a new loan product
 @loan_product_bp.route('', methods=['POST'])
 @jwt_required()
@@ -113,7 +124,7 @@ def create_loan_product():
         max_amount = float(data['max_amount'])
         interest_rate = float(data['interest_rate'])
         duration_months = int(data['duration_months'])
-        frequency = data['frequency']
+        frequency = RepaymentFrequencies(data['frequency'])
         
         loan_product = LoanProduct(
             name=name,
@@ -153,7 +164,15 @@ def update_loan_product(id):
         loan_product.max_amount = float(data.get('max_amount', loan_product.max_amount))
         loan_product.interest_rate = float(data.get('interest_rate', loan_product.interest_rate))
         loan_product.duration_months = int(data.get('duration_months', loan_product.duration_months))
-        loan_product.frequency = data.get('frequency', loan_product.frequency)
+       
+        if 'frequency' in data:
+            frequency_str = data['frequency']
+            try:
+                loan_product.frequency = RepaymentFrequencies(frequency_str)
+            except ValueError:
+                return jsonify({
+                    'error': f'Invalid frequency: {frequency_str}. Must be one of {[f.value for f in RepaymentFrequencies]}'
+                }), 400
 
         db.session.commit()
         return jsonify(loan_product.to_dict()), 200
@@ -188,12 +207,36 @@ def approve_loan(id):
     try:
         loan = Loan.query.get_or_404(id)
         
-        if loan.status != 'pending':
+        if loan.status != LoanStatus.pending:
             return jsonify({'error': 'No pending loans to approve'}), 400
-    
-        loan.status = 'approved'
+        loan.status = LoanStatus.approved
+        loan.approved_date = datetime.utcnow()
+        
+        # Upon approval, autogenerate a repayment schedule
+        repayment_count = 12
+        amount_per_week = round(loan.amount / repayment_count, 2)
+        today = datetime.utcnow()
+
+        for i in range(repayment_count):
+            schedule = RepaymentSchedule(
+                loan_id=loan.id,
+                due_date=today + timedelta(weeks=i),
+                amount_due=amount_per_week,
+                status='unpaid'
+            )
+            db.session.add(schedule)
+        
         db.session.commit()   
-        return jsonify(loan.to_dict()), 200
+        return jsonify({
+            'message': 'Loan approved and repayment schedule created', 
+            'loan': loan.to_dict(rules=(
+                '-borrower', '-lender', '-repayments', '-loan_product',
+                'repayment_schedules.id',
+                'repayment_schedules.due_date',
+                'repayment_schedules.amount_due',
+                'repayment_schedules.status'
+            )   
+        )}), 200
         
     except Exception as e:
         db.session.rollback()
@@ -210,10 +253,10 @@ def reject_loan(id):
         
         loan = Loan.query.get_or_404(id)
         
-        if loan.status != 'pending':
+        if loan.status != LoanStatus.pending:
             return jsonify({'error': 'You can only reject a pending loan'}), 400
         
-        loan.status = 'rejected'
+        loan.status = LoanStatus.rejected
         loan.rejected_reason = rejected_reason
         db.session.commit()
         
@@ -231,10 +274,10 @@ def disburse_loan(id):
     try:
         loan = Loan.query.get_or_404(id)
         
-        if loan.status != 'approved':
+        if loan.status != LoanStatus.approved:
             return jsonify({'error': 'You can only disburse approved loan'}), 400
         
-        loan.status = 'disbursed'
+        loan.status = LoanStatus.disbursed
         loan.issued_date = datetime.utcnow()
         db.session.commit()
         return jsonify(loan.to_dict()), 200

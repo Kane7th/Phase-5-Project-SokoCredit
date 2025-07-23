@@ -27,7 +27,7 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({"msg": "Invalid credentials"}), 401
 
-    identity = f"user_{user.id}:{user.role}"
+    identity = f"{user.id}:{user.role.lower()}"
     access_token = create_access_token(identity=identity)
     refresh_token = create_refresh_token(identity=identity)
 

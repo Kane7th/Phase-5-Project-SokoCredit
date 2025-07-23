@@ -12,7 +12,7 @@ class RepaymentFrequencies(pyEnum):
 class LoanProduct(db.Model, SerializerMixin):
     __tablename__ = 'loan_products'
     
-    serialize_rules = ('-loans')
+    serialize_rules = ('-loans',)
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)

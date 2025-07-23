@@ -22,13 +22,15 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.customers import customers_bp
     from app.routes.auth import auth_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
-    
+    from app.routes.repayment_routes import repayment_bp, repayment_schedule_bp
     
     # Register Blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(customers_bp, url_prefix='/customers')
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
+    app.register_blueprint(repayment_bp)
+    app.register_blueprint(repayment_schedule_bp)
 
     # Error handlers
     @app.errorhandler(413)

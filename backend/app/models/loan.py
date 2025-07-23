@@ -18,7 +18,6 @@ class Loan(db.Model, SerializerMixin):
     serialize_rules = ('-borrower', 
                        '-lender', 
                        '-repayments', 
-                       '-repayment_schedules',
                        '-loan_product'
                        )
     
@@ -51,18 +50,3 @@ class Loan(db.Model, SerializerMixin):
     def __repr__(self):
         return f'<Loan id={self.id} amount={self.amount} status={self.status} borrower_id={self.borrower_id} lender_id={self.lender_id}>'
     
-    # def to_dict(self):
-    #     return {
-    #         "id": self.id,
-    #         "amount": self.amount,
-    #         "interest_rate": self.interest_rate,
-    #         "status": self.status.value,
-    #         "borrower": {
-    #             "id": self.borrower.id,
-    #             "name": self.borrower.full_name
-    #         },
-    #         "loan_product": {
-    #             "id": self.loan_product.id,
-    #             "name": self.loan_product.name
-    #         }
-    #     }
