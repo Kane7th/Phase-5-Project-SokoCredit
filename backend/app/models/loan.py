@@ -15,11 +15,10 @@ class LoanStatus(pyEnum):
 class Loan(db.Model, SerializerMixin):
     __tablename__ = 'loans'
     
-    serialize_rules = ('-borrower.loans', 
-                       '-lender.issued_loans', 
-                       '-repayments.loan', 
-                       '-repayment_schedules.loan',
-                       '-loan_product.loans'
+    serialize_rules = ('-borrower', 
+                       '-lender', 
+                       '-repayments', 
+                       '-loan_product'
                        )
     
     id = db.Column(db.Integer, primary_key=True)
