@@ -21,7 +21,11 @@ def create_app(config="config.default_config.DefaultConfig"):
 
     from app.routes.customers import customers_bp
     from app.routes.auth import auth_bp
+    from app.routes.users import users_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
+    from app.routes.notifications import notifications_bp
+    from app.models.notification import Notification
+
     
     
     # Register Blueprints
@@ -29,6 +33,8 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(customers_bp, url_prefix='/customers')
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
+    app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(notifications_bp, url_prefix='/notifications')
 
     # Error handlers
     @app.errorhandler(413)

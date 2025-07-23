@@ -6,9 +6,10 @@ Before anything, make sure you're authenticated.
 URL should start with: http://127.0.0.1:5000/
 
 POST /auth/login # e.g. http://127.0.0.1:5000/auth/login
-{
-  "email": "admin@example.com",
-  "password": "admin123"
+  {
+    "credential": "admin@sokocredit.com",
+    "password": "password"
+  }
 }
 Copy the returned token and include this in every request as a bearer token:
 
