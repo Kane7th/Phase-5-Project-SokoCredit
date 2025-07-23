@@ -6,13 +6,30 @@ import toast from 'react-hot-toast'
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
-    try {
-      const response = await authService.login(credentials)
-      localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('refresh_token', response.refresh_token)
-      return response
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.error || 'Login failed')
+    // Mock login for frontend-only validation
+    const demoAccounts = [
+      { role: 'admin', username: 'admin@sokocredit.com', password: 'admin123' },
+      { role: 'loan_officer', username: 'officer@sokocredit.com', password: 'officer123' },
+      { role: 'customer', username: 'customer@sokocredit.com', password: 'customer123' },
+    ]
+
+    const user = demoAccounts.find(
+      (acc) =>
+        acc.username === credentials.identifier &&
+        acc.password === credentials.password
+    )
+
+    if (user) {
+      const mockResponse = {
+        user: { full_name: user.username.split('@')[0], role: user.role },
+        access_token: 'mock_access_token',
+        refresh_token: 'mock_refresh_token',
+      }
+      localStorage.setItem('access_token', mockResponse.access_token)
+      localStorage.setItem('refresh_token', mockResponse.refresh_token)
+      return mockResponse
+    } else {
+      return rejectWithValue('Invalid username or password')
     }
   }
 )
