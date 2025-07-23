@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useSelector } from 'react-redux'
 import { 
   Users, 
@@ -13,9 +13,11 @@ import {
   Clock,
   Building
 } from 'lucide-react'
+import '../../styles/dashboard.css'
 
 const AdminDashboard = () => {
   const { user } = useSelector((state) => state.auth)
+  console.log('AdminDashboard user:', user)
   const [activeTab, setActiveTab] = useState('overview')
 
   // Mock data - replace with API calls
@@ -70,11 +72,11 @@ const AdminDashboard = () => {
     // API call to reject lender
   }
 
-  const StatCard = ({ title, value, icon: Icon, color, change }) => (
+  const StatCard = ({ title, value, icon, color, change }) => (
     <div className="stat-card">
       <div className="stat-header">
         <div className={`stat-icon ${color}`}>
-          <Icon size={24} />
+          {icon}
         </div>
         {change && (
           <span className={`stat-change ${change > 0 ? 'positive' : 'negative'}`}>
@@ -130,41 +132,41 @@ const AdminDashboard = () => {
             <StatCard
               title="Total Lenders"
               value={stats.totalLenders}
-              icon={Users}
+              icon={<Users size={24} />}
               color="blue"
               change={12}
             />
             <StatCard
               title="Pending Approvals"
               value={stats.pendingLenders}
-              icon={Clock}
+              icon={<Clock size={24} />}
               color="orange"
             />
             <StatCard
               title="Active Lenders"
               value={stats.activeLenders}
-              icon={UserCheck}
+              icon={<UserCheck size={24} />}
               color="green"
               change={8}
             />
             <StatCard
               title="Total Customers"
               value={stats.totalCustomers.toLocaleString()}
-              icon={Building}
+              icon={<Building size={24} />}
               color="purple"
               change={15}
             />
             <StatCard
               title="Total Loans Value"
               value={`KSH ${(stats.totalLoans / 1000000).toFixed(1)}M`}
-              icon={DollarSign}
+              icon={<DollarSign size={24} />}
               color="green"
               change={22}
             />
             <StatCard
               title="System Health"
               value={`${stats.systemHealth}%`}
-              icon={TrendingUp}
+              icon={<TrendingUp size={24} />}
               color="blue"
             />
           </div>
