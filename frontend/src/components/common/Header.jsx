@@ -34,7 +34,7 @@ const Header = () => {
     const roles = {
       admin: 'System Administrator',
       loan_officer: 'Loan Officer',
-      agent: 'Field Agent',
+      mamaMboga: 'Mama Mboga',
       customer: 'Business Owner'
     }
     return roles[role] || role
@@ -45,7 +45,7 @@ const Header = () => {
       case 'admin':
         return '👑'
       case 'loan_officer':
-      case 'agent':
+      case 'mamaMboga':
         return '💼'
       case 'customer':
         return '🛒'
@@ -114,7 +114,7 @@ const Header = () => {
         {/* Header Actions */}
         <div className="header-actions">
           {/* Quick Stats for Lenders */}
-          {(user?.role === 'loan_officer' || user?.role === 'agent') && (
+          {(user?.role === 'loan_officer' || user?.role === 'mamaMboga') && (
             <div className="quick-stats">
               <div className="stat-item">
                 <Users size={16} />

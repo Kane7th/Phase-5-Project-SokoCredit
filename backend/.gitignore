@@ -25,3 +25,6 @@ env/
 
 *.pyc
 __pycache__/
+
+# Ignore frontend directory
+/frontend/

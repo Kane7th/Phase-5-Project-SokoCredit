@@ -2,9 +2,8 @@ import os
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
-from .extensions import db, migrate, jwt
+from .extensions import db, migrate, jwt, socketio
 from app.models import User, Customer, Loan, LoanProduct, Repayment, RepaymentSchedule
-
 
 def create_app(config="config.default_config.DefaultConfig"):
     load_dotenv()
@@ -16,21 +15,31 @@ def create_app(config="config.default_config.DefaultConfig"):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # Enable CORS for frontend origin
+    # Enable CORS
     CORS(app, resources={r"/auth/*": {"origins": "http://localhost:5173"}})
 
+    # Initialize socketio
+    socketio.init_app(app)
+
+    # Register Blueprints
     from app.routes.customers import customers_bp
     from app.routes.auth import auth_bp
+    from app.routes.users import users_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
-    from app.routes.repayment_routes import repayment_bp, repayment_schedule_bp
-    
-    # Register Blueprints
+    from app.routes.notifications import notifications_bp
+    from app.models.notification import Notification
+
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(customers_bp, url_prefix='/customers')
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
-    app.register_blueprint(repayment_bp)
-    app.register_blueprint(repayment_schedule_bp)
+    app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(notifications_bp, url_prefix='/notifications')
+
+    # Import NotificationNamespace after socketio is ready
+    from app.sockets.notifications_socket import NotificationNamespace
+    socketio.on_namespace(NotificationNamespace('/notifications'))
+
 
     # Error handlers
     @app.errorhandler(413)
@@ -38,4 +47,3 @@ def create_app(config="config.default_config.DefaultConfig"):
         return jsonify({"msg": "File too large (max 10MB)"}), 413
 
     return app
-

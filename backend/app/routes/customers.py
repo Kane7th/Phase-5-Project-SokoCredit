@@ -86,6 +86,7 @@ def create_customer():
     customer_kwargs = {
         "full_name": data["full_name"],
         "phone": data["phone"],
+        "email": data.get("email"),
         "business_name": data.get("business_name"),
         "location": data.get("location"),
         "documents": data.get("documents", {}),
@@ -195,7 +196,7 @@ def get_customer(customer_id):
 
 @customers_bp.route("/my_customers", methods=["GET"])
 @jwt_required()
-@role_required("lender")
+@role_required("admin", "lender")
 def get_my_customers():
     identity = get_jwt_identity()
     user_id = identity if isinstance(identity, int) else int(identity.split("_")[-1])
