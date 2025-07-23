@@ -23,7 +23,7 @@ with app.app_context():
     lender = User(username='lender1', role='lender', email='lender1@example.com')
     lender.set_password('lender123')
 
-    mamamboga_user = User(username='mama_fatuma', role='mamamboga', phone='0712345678')
+    mamamboga_user = User(username='mama_fatuma', role='mama_mboga', phone='0712345678')
     mamamboga_user.set_password('fatuma123')
 
     db.session.add_all([admin, lender, mamamboga_user])

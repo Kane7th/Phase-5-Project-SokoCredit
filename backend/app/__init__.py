@@ -40,6 +40,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.sockets.notifications_socket import NotificationNamespace
     socketio.on_namespace(NotificationNamespace('/notifications'))
 
+
     # Error handlers
     @app.errorhandler(413)
     def file_too_large(e):
