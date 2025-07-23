@@ -4,6 +4,11 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from .extensions import db, migrate, jwt
 from app.models import User, Customer, Loan, LoanProduct, Repayment, RepaymentSchedule
+from flask_socketio import SocketIO
+from app.sockets.notifications_socket import NotificationNamespace
+
+
+socketio = SocketIO(cors_allowed_origins="*")  
 
 
 def create_app(config="config.default_config.DefaultConfig"):
@@ -19,13 +24,15 @@ def create_app(config="config.default_config.DefaultConfig"):
     # Enable CORS for frontend origin
     CORS(app, resources={r"/auth/*": {"origins": "http://localhost:5173"}})
 
+    # Initialize SocketIO
+    socketio.init_app(app)
+
     from app.routes.customers import customers_bp
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
     from app.routes.notifications import notifications_bp
     from app.models.notification import Notification
-
     
     
     # Register Blueprints
@@ -36,10 +43,13 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
 
+    # Register the notification namespace
+    socketio.on_namespace(NotificationNamespace('/notifications'))
+
     # Error handlers
     @app.errorhandler(413)
     def file_too_large(e):
         return jsonify({"msg": "File too large (max 10MB)"}), 413
-
+    
     return app
 
