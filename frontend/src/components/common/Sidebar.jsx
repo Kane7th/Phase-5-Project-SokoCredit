@@ -199,12 +199,68 @@ const Sidebar = () => {
   const getMenuItems = () => {
     switch (user?.role) {
       case 'admin':
-        return adminMenuItems
+        return adminMenuItems.map(item => {
+          // Override onClick for admin menu items to sync with AdminDashboard tab state
+          const tabMap = {
+            '/dashboard/admin/customers': 'overview',
+            '/dashboard/admin/lenders': 'lenders',
+            '/dashboard/admin/analytics': 'analytics',
+            '/dashboard/admin/loans': 'loans',
+            '/dashboard/admin/reports': 'reports',
+            '/dashboard/admin/settings': 'settings',
+          }
+          return {
+            ...item,
+            onClick: (e) => {
+              e.preventDefault()
+              const tab = tabMap[item.path]
+              if (tab && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('adminTabChange', { detail: tab }))
+              }
+            },
+            path: '#', // prevent default navigation
+          }
+        })
       case 'loan_officer':
-      case 'mamaMboga':
-        return lenderMenuItems
+        return lenderMenuItems.map(item => {
+          const tabMap = {
+            '/dashboard/customer': 'overview',
+            '/dashboard/customer/loans': 'loans',
+            '/dashboard/customer/payments': 'collections',
+          }
+          return {
+            ...item,
+            onClick: (e) => {
+              e.preventDefault()
+              const tab = tabMap[item.path]
+              if (tab && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('lenderTabChange', { detail: tab }))
+              }
+            },
+            path: '#',
+          }
+        })
+      case 'mama_mboga':
       case 'customer':
-        return customerMenuItems
+        return customerMenuItems.map(item => {
+          const tabMap = {
+            '/dashboard': 'overview',
+            '/dashboard/customer/loans': 'loans',
+            '/dashboard/customer/payments': 'payments',
+            '/dashboard/customer/profile': 'profile',
+          }
+          return {
+            ...item,
+            onClick: (e) => {
+              e.preventDefault()
+              const tab = tabMap[item.path]
+              if (tab && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('customerTabChange', { detail: tab }))
+              }
+            },
+            path: '#',
+          }
+        })
       default:
         return []
     }
@@ -228,16 +284,21 @@ const Sidebar = () => {
     const hasSubmenu = item.submenu && item.submenu.length > 0
     const itemIsActive = isActive(item.path)
 
+    const handleClick = (e) => {
+      if (item.onClick) {
+        item.onClick(e)
+      } else if (hasSubmenu) {
+        e.preventDefault()
+        setShowSubmenu(!showSubmenu)
+      }
+    }
+
     return (
       <li className="menu-item">
         <Link
           to={item.path}
           className={`menu-link ${itemIsActive ? 'active' : ''}`}
-          onClick={() => {
-            if (hasSubmenu) {
-              setShowSubmenu(!showSubmenu)
-            }
-          }}
+          onClick={handleClick}
         >
           <div className="menu-icon">
             <item.icon size={20} />

@@ -48,30 +48,25 @@ const initialState = {
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
-    // Mock login for frontend-only validation
-    const demoAccounts = [
-      { role: 'admin', username: 'admin@sokocredit.com', password: 'admin123' },
-      { role: 'loan_officer', username: 'officer@sokocredit.com', password: 'officer123' },
-      { role: 'customer', username: 'customer@sokocredit.com', password: 'customer123' },
-    ]
-
-    const user = demoAccounts.find(
-      (acc) =>
-        acc.username === credentials.identifier &&
-        acc.password === credentials.password
-    )
-
-    if (user) {
-      const mockResponse = {
-        user: { full_name: user.username.split('@')[0], role: user.role },
-        access_token: 'mock_access_token',
-        refresh_token: 'mock_refresh_token',
+    try {
+      const response = await authService.login({
+        credential: credentials.credential,
+        password: credentials.password,
+      })
+      const data = response.data || response
+      localStorage.setItem('access_token', data.access_token)
+      localStorage.setItem('refresh_token', data.refresh_token)
+      return {
+        user: data.user,
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        user_id: data.user?.id,
+        role: data.user?.role,
       }
-      localStorage.setItem('access_token', mockResponse.access_token)
-      localStorage.setItem('refresh_token', mockResponse.refresh_token)
-      return mockResponse
-    } else {
-      return rejectWithValue('Invalid username or password')
+    } catch (error) {
+      const message =
+        error.response?.data?.error || error.message || 'Login failed'
+      return rejectWithValue(message)
     }
   }
 )
@@ -147,8 +142,26 @@ const authSlice = createSlice({
         state.token = action.payload.access_token
         state.refreshToken = action.payload.refresh_token
         state.user_id = action.payload.user_id
-        state.role = action.payload.role
+
+        // Normalize role names for frontend consistency
+        let normalizedRole = action.payload.role
+        if (normalizedRole) {
+          normalizedRole = normalizedRole.toLowerCase()
+          if (normalizedRole === 'lender') {
+            normalizedRole = 'loan_officer'
+          } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+            normalizedRole = 'customer'
+          }
+        }
+
+        state.role = normalizedRole
         state.user = action.payload.user
+
+        // Update user.role to normalized role for consistency
+        if (state.user) {
+          state.user.role = normalizedRole
+        }
+
         state.isAuthenticated = true
         toast.success('Login successful!')
       })
@@ -175,6 +188,23 @@ const authSlice = createSlice({
 
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.user = action.payload.user
+
+        // Normalize role names for frontend consistency
+        if (state.user && state.user.role) {
+          let normalizedRole = state.user.role.toLowerCase()
+          if (normalizedRole === 'lender') {
+            normalizedRole = 'loan_officer'
+          } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+            normalizedRole = 'customer'
+          }
+          state.role = normalizedRole
+
+          // Update user.role to normalized role for consistency
+          if (state.user) {
+            state.user.role = normalizedRole
+          }
+        }
+
         state.isAuthenticated = true
       })
       .addCase(getCurrentUser.rejected, (state, action) => {

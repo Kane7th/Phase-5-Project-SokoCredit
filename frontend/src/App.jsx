@@ -30,7 +30,7 @@ function App() {
         <Route
           path="/dashboard/*"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer', 'Mama Mboga']}>
+            <ProtectedRoute allowedRoles={['admin', 'loan_officer', 'customer', 'mama_mboga']}>
               <Layout />
             </ProtectedRoute>
           }
@@ -41,7 +41,7 @@ function App() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer', 'Mama Mboga']}>
+            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer']}>
               <ProfilePage />
             </ProtectedRoute>
           }
@@ -50,7 +50,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer', 'Mama Mboga']}>
+            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer']}>
               <Settings />
             </ProtectedRoute>
           }

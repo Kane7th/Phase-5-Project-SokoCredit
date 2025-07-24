@@ -17,6 +17,16 @@ const LenderDashboard = () => {
   const { user } = useSelector((state) => state.auth)
   const [activeTab, setActiveTab] = useState('overview')
 
+  React.useEffect(() => {
+    const handleTabChange = (e) => {
+      setActiveTab(e.detail)
+    }
+    window.addEventListener('lenderTabChange', handleTabChange)
+    return () => {
+      window.removeEventListener('lenderTabChange', handleTabChange)
+    }
+  }, [])
+
   // Mock data - replace with API calls
   const [stats, setStats] = useState({
     myCustomers: 23,
