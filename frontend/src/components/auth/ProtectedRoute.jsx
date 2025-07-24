@@ -23,7 +23,13 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     }
   }, [token, user, isLoading, dispatch])
 
-  const currentRole = role || user?.role
+  let currentRole = role || user?.role
+
+  // Normalize currentRole to lowercase with underscores
+  currentRole = currentRole ? currentRole.toLowerCase().replace(/\s+/g, '_') : ''
+
+  // Normalize allowedRoles to lowercase with underscores
+  const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase().replace(/\s+/g, '_'))
 
   // While loading or waiting for user
   if ((token && !user) || isLoading) {
@@ -51,7 +57,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   // User is logged in but role not allowed
-  if (allowedRoles.length > 0 && !allowedRoles.includes(currentRole)) {
+  if (normalizedAllowedRoles.length > 0 && !normalizedAllowedRoles.includes(currentRole)) {
     return <Navigate to="/" replace />
   }
 
