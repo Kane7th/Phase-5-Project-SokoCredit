@@ -48,20 +48,30 @@ const initialState = {
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
-    try {
-      const { access_token, refresh_token } = await authService.login(credentials)
-      const { user_id, role } = parseJwt(access_token)
+    // Mock login for frontend-only validation
+    const demoAccounts = [
+      { role: 'admin', username: 'admin@sokocredit.com', password: 'admin123' },
+      { role: 'loan_officer', username: 'officer@sokocredit.com', password: 'officer123' },
+      { role: 'customer', username: 'customer@sokocredit.com', password: 'customer123' },
+    ]
 
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
-      localStorage.setItem('user_id', user_id)
-      localStorage.setItem('user_role', role)
+    const user = demoAccounts.find(
+      (acc) =>
+        acc.username === credentials.identifier &&
+        acc.password === credentials.password
+    )
 
-      const user = await authService.getCurrentUser()
-
-      return { access_token, refresh_token, user_id, role, user }
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Login failed')
+    if (user) {
+      const mockResponse = {
+        user: { full_name: user.username.split('@')[0], role: user.role },
+        access_token: 'mock_access_token',
+        refresh_token: 'mock_refresh_token',
+      }
+      localStorage.setItem('access_token', mockResponse.access_token)
+      localStorage.setItem('refresh_token', mockResponse.refresh_token)
+      return mockResponse
+    } else {
+      return rejectWithValue('Invalid username or password')
     }
   }
 )
