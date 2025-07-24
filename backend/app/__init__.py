@@ -27,6 +27,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.users import users_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
     from app.routes.notifications import notifications_bp
+    from app.routes.analytics import analytics_bp
     from app.models.notification import Notification
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -35,6 +36,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(loan_product_bp)
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
+    app.register_blueprint(analytics_bp)
 
     # Import NotificationNamespace after socketio is ready
     from app.sockets.notifications_socket import NotificationNamespace
