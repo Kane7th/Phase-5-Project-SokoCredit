@@ -20,6 +20,16 @@ const CustomerDashboard = () => {
   const { user } = useSelector((state) => state.auth)
   const [activeTab, setActiveTab] = useState('overview')
 
+  React.useEffect(() => {
+    const handleTabChange = (e) => {
+      setActiveTab(e.detail)
+    }
+    window.addEventListener('customerTabChange', handleTabChange)
+    return () => {
+      window.removeEventListener('customerTabChange', handleTabChange)
+    }
+  }, [])
+
   // Mock data - replace with API calls
   const customerData = {
     creditScore: 720,

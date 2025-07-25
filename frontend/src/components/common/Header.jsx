@@ -30,6 +30,11 @@ const Header = () => {
     navigate('/login')
   }
 
+  const handleNavigate = (path) => {
+    navigate(path)
+    setShowUserMenu(false)
+  }
+
   const getUserRoleDisplay = (role) => {
     const roles = {
       admin: 'System Administrator',
@@ -213,22 +218,22 @@ const Header = () => {
                 </div>
                 
                 <div className="dropdown-body">
-                  <button className="menu-item">
+                  <button className="menu-item" onClick={() => handleNavigate('/profile')}>
                     <User size={16} />
                     My Profile
                   </button>
-                  <button className="menu-item">
+                  <button className="menu-item" onClick={() => handleNavigate('/settings')}>
                     <Settings size={16} />
                     Settings
                   </button>
                   
                   {user?.role === 'customer' && (
                     <>
-                      <button className="menu-item">
+                      <button className="menu-item" onClick={() => handleNavigate('/dashboard/customer/loans')}>
                         <CreditCard size={16} />
                         My Loans
                       </button>
-                      <button className="menu-item">
+                      <button className="menu-item" onClick={() => handleNavigate('/dashboard/customer/payments/history')}>
                         <DollarSign size={16} />
                         Payment History
                       </button>

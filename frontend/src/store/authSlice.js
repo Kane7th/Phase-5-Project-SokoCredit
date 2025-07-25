@@ -49,19 +49,24 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      const { access_token, refresh_token } = await authService.login(credentials)
-      const { user_id, role } = parseJwt(access_token)
-
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
-      localStorage.setItem('user_id', user_id)
-      localStorage.setItem('user_role', role)
-
-      const user = await authService.getCurrentUser()
-
-      return { access_token, refresh_token, user_id, role, user }
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.error || 'Login failed')
+      const response = await authService.login({
+        credential: credentials.credential,
+        password: credentials.password,
+      })
+      const data = response.data || response
+      localStorage.setItem('access_token', data.access_token)
+      localStorage.setItem('refresh_token', data.refresh_token)
+      return {
+        user: data.user,
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        user_id: data.user?.id,
+        role: data.user?.role,
+      }
+    } catch (error) {
+      const message =
+        error.response?.data?.error || error.message || 'Login failed'
+      return rejectWithValue(message)
     }
   }
 )
@@ -137,8 +142,26 @@ const authSlice = createSlice({
         state.token = action.payload.access_token
         state.refreshToken = action.payload.refresh_token
         state.user_id = action.payload.user_id
-        state.role = action.payload.role
+
+        // Normalize role names for frontend consistency
+        let normalizedRole = action.payload.role
+        if (normalizedRole) {
+          normalizedRole = normalizedRole.toLowerCase()
+          if (normalizedRole === 'lender') {
+            normalizedRole = 'loan_officer'
+          } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+            normalizedRole = 'customer'
+          }
+        }
+
+        state.role = normalizedRole
         state.user = action.payload.user
+
+        // Update user.role to normalized role for consistency
+        if (state.user) {
+          state.user.role = normalizedRole
+        }
+
         state.isAuthenticated = true
         toast.success('Login successful!')
       })
@@ -165,6 +188,23 @@ const authSlice = createSlice({
 
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.user = action.payload.user
+
+        // Normalize role names for frontend consistency
+        if (state.user && state.user.role) {
+          let normalizedRole = state.user.role.toLowerCase()
+          if (normalizedRole === 'lender') {
+            normalizedRole = 'loan_officer'
+          } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+            normalizedRole = 'customer'
+          }
+          state.role = normalizedRole
+
+          // Update user.role to normalized role for consistency
+          if (state.user) {
+            state.user.role = normalizedRole
+          }
+        }
+
         state.isAuthenticated = true
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
