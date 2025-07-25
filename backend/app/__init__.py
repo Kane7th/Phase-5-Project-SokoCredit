@@ -23,6 +23,8 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.auth import auth_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
     from app.routes.repayment_routes import repayment_bp, repayment_schedule_bp
+    from app.routes.mpesa.test_mpesa_route import test_bp
+   
     
     # Register Blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -31,6 +33,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(loan_product_bp)
     app.register_blueprint(repayment_bp)
     app.register_blueprint(repayment_schedule_bp)
+    app.register_blueprint(test_bp)
 
     # Error handlers
     @app.errorhandler(413)
