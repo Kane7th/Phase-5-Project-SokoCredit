@@ -181,15 +181,15 @@ const Login = () => {
             {errors.password && <div className="text-error">{errors.password.message}</div>}
           </div>
 
-          <div className="flex justify-between items-center my-4">
-            <div className="form-checkbox-wrapper">
-              <input type="checkbox" id="remember" className="form-checkbox" {...register('remember')} />
-              <label htmlFor="remember" className="text-sm text-gray-600">
-                Remember me
-              </label>
+            <div className="flex justify-between items-center my-4">
+              <div className="form-checkbox-wrapper">
+                <input type="checkbox" id="remember" className="form-checkbox" {...register('remember')} />
+                <label htmlFor="remember" className="text-sm text-gray-600">
+                  Remember me
+                </label>
+              </div>
+              <a href="/forgot-password" className="forgot-password">Forgot password?</a>
             </div>
-            <a href="#" className="forgot-password">Forgot password?</a>
-          </div>
 
           <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
             {isLoading ? (
