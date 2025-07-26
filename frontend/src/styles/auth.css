@@ -322,3 +322,69 @@
     display: none;
   }
 }
+
+/* Forgot Password Styles */
+.forgot-password-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+  padding: var(--space-4);
+}
+
+.forgot-password-container h2 {
+  text-align: center;
+  color: var(--gray-900);
+  margin-bottom: var(--space-10);
+}
+
+.forgot-password-container form {
+  background: var(--white);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 400px;
+}
+
+.forgot-password-container .form-group {
+  margin-bottom: var(--space-4);
+}
+
+.forgot-password-container label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-semibold);
+  color: var(--gray-700);
+}
+
+.forgot-password-container input[type="text"] {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  transition: border-color 0.2s ease-in-out;
+}
+
+.forgot-password-container input[type="text"]:focus {
+  border-color: var(--primary-blue);
+  outline: none;
+}
+
+.forgot-password-container button {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--primary-blue);
+  color: var(--white);
+  font-weight: var(--font-semibold);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.forgot-password-container button:hover {
+  background: var(--primary-blue-dark);
+}

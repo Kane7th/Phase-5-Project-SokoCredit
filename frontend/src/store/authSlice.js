@@ -178,7 +178,7 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state) => {
         state.isLoading = false
-        toast.success('Registration successful! Please wait for approval.')
+        toast.success('Registration successful! You can now log in.')
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false
