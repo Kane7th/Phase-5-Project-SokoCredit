@@ -22,7 +22,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.customers import customers_bp
     from app.routes.auth import auth_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
-    from app.routes.repayment_routes import repayment_bp, repayment_schedule_bp
+    from app.routes.repayment_routes import repayment_bp
     from app.routes.mpesa.test_mpesa_route import test_bp
     from app.routes.mpesa.views import mpesa_bp
     from app.routes.mpesa.callbacks import callback_bp
@@ -34,7 +34,6 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
     app.register_blueprint(repayment_bp)
-    app.register_blueprint(repayment_schedule_bp)
     app.register_blueprint(test_bp)
     app.register_blueprint(mpesa_bp)
     app.register_blueprint(callback_bp)
