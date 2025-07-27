@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import CustomerProfile from './CustomerProfile'
 import AddCustomerModal from './AddCustomerModal'
+import { customerService } from '../../services/customerService'
 import '../../styles/customer-management.css'
 
 const CustomerManagement = () => {
@@ -46,233 +47,39 @@ const CustomerManagement = () => {
   const [showAddCustomer, setShowAddCustomer] = useState(false)
   const [selectedCustomers, setSelectedCustomers] = useState([])
 
-  // Mock customer data
-  const [customers, setCustomers] = useState([
-    {
-      id: 1,
-      name: 'Mary Wanjiku Kamau',
-      phone: '+254712345678',
-      email: 'mary.wanjiku@gmail.com',
-      business: {
-        name: 'Wanjiku Vegetables',
-        type: 'mama_mboga',
-        location: 'Kawangware Market',
-        established: '2021-05-15',
-        description: 'Fresh vegetables and fruits vendor'
-      },
-      personalInfo: {
-        idNumber: '12345678',
-        dateOfBirth: '1985-03-20',
-        gender: 'female',
-        maritalStatus: 'married',
-        dependents: 3,
-        education: 'secondary',
-        address: 'Kawangware, Nairobi'
-      },
-      financial: {
-        monthlyIncome: 45000,
-        monthlyExpenses: 25000,
-        netIncome: 20000,
-        bankAccount: true,
-        savingsAccount: true
-      },
-      creditProfile: {
-        score: 720,
-        rating: 'excellent',
-        totalLoans: 3,
-        activeLoans: 1,
-        completedLoans: 2,
-        totalBorrowed: 185000,
-        totalRepaid: 135000,
-        currentBalance: 25000,
-        paymentHistory: 95.8,
-        averagePaymentDays: 2.3,
-        lastPaymentDate: '2024-01-20'
-      },
-      status: 'active',
-      segment: 'premium',
-      riskLevel: 'low',
-      registrationDate: '2023-10-15',
-      lastActivityDate: '2024-01-21',
-      assignedLender: user?.id,
-      tags: ['reliable', 'growing_business', 'punctual'],
-      notes: 'Excellent customer with consistent payments. Business showing strong growth.',
-      documents: {
-        idCopy: { status: 'verified', uploadDate: '2023-10-15' },
-        businessPermit: { status: 'verified', uploadDate: '2023-10-16' },
-        bankStatement: { status: 'verified', uploadDate: '2023-10-15' },
-        passport: { status: 'verified', uploadDate: '2023-10-15' }
-      },
-      communications: [
-        {
-          id: 1,
-          type: 'payment_reminder',
-          date: '2024-01-19',
-          method: 'sms',
-          content: 'Payment reminder for upcoming due date',
-          status: 'sent'
-        },
-        {
-          id: 2,
-          type: 'loan_approved',
-          date: '2024-01-10',
-          method: 'call',
-          content: 'Loan approval notification and terms discussion',
-          status: 'completed'
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Grace Akinyi Odhiambo',
-      phone: '+254787654321',
-      email: null,
-      business: {
-        name: 'Grace Fruits',
-        type: 'fruit_vendor',
-        location: 'Kisumu Central Market',
-        established: '2024-01-01',
-        description: 'Fresh tropical fruits seller'
-      },
-      personalInfo: {
-        idNumber: '23456789',
-        dateOfBirth: '1990-07-12',
-        gender: 'female',
-        maritalStatus: 'single',
-        dependents: 1,
-        education: 'primary',
-        address: 'Nyalenda, Kisumu'
-      },
-      financial: {
-        monthlyIncome: 25000,
-        monthlyExpenses: 15000,
-        netIncome: 10000,
-        bankAccount: false,
-        savingsAccount: true
-      },
-      creditProfile: {
-        score: 650,
-        rating: 'good',
-        totalLoans: 1,
-        activeLoans: 1,
-        completedLoans: 0,
-        totalBorrowed: 50000,
-        totalRepaid: 15000,
-        currentBalance: 35000,
-        paymentHistory: 88.5,
-        averagePaymentDays: 3.1,
-        lastPaymentDate: '2024-01-18'
-      },
-      status: 'active',
-      segment: 'standard',
-      riskLevel: 'medium',
-      registrationDate: '2024-01-10',
-      lastActivityDate: '2024-01-21',
-      assignedLender: user?.id,
-      tags: ['new_customer', 'potential'],
-      notes: 'New customer showing good payment behavior. Monitor closely.',
-      documents: {
-        idCopy: { status: 'verified', uploadDate: '2024-01-10' },
-        businessPermit: { status: 'pending', uploadDate: null },
-        bankStatement: { status: 'missing', uploadDate: null },
-        passport: { status: 'verified', uploadDate: '2024-01-10' }
-      },
-      communications: [
-        {
-          id: 1,
-          type: 'welcome',
-          date: '2024-01-10',
-          method: 'sms',
-          content: 'Welcome to SokoCredit family!',
-          status: 'sent'
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Peter Kiprotich Bett',
-      phone: '+254723456789',
-      email: 'peter.bett@yahoo.com',
-      business: {
-        name: 'Boda Boda Services',
-        type: 'transport',
-        location: 'Eldoret Town',
-        established: '2023-06-20',
-        description: 'Motorcycle taxi services'
-      },
-      personalInfo: {
-        idNumber: '34567890',
-        dateOfBirth: '1988-11-30',
-        gender: 'male',
-        maritalStatus: 'married',
-        dependents: 2,
-        education: 'secondary',
-        address: 'Pioneer, Eldoret'
-      },
-      financial: {
-        monthlyIncome: 35000,
-        monthlyExpenses: 28000,
-        netIncome: 7000,
-        bankAccount: true,
-        savingsAccount: false
-      },
-      creditProfile: {
-        score: 580,
-        rating: 'fair',
-        totalLoans: 2,
-        activeLoans: 1,
-        completedLoans: 1,
-        totalBorrowed: 85000,
-        totalRepaid: 45000,
-        currentBalance: 40000,
-        paymentHistory: 76.2,
-        averagePaymentDays: 5.8,
-        lastPaymentDate: '2024-01-15'
-      },
-      status: 'watch_list',
-      segment: 'standard',
-      riskLevel: 'high',
-      registrationDate: '2023-08-20',
-      lastActivityDate: '2024-01-15',
-      assignedLender: user?.id,
-      tags: ['payment_issues', 'requires_monitoring'],
-      notes: 'Customer has some payment delays. Increased monitoring required.',
-      documents: {
-        idCopy: { status: 'verified', uploadDate: '2023-08-20' },
-        businessPermit: { status: 'verified', uploadDate: '2023-08-21' },
-        bankStatement: { status: 'expired', uploadDate: '2023-08-20' },
-        passport: { status: 'verified', uploadDate: '2023-08-20' }
-      },
-      communications: [
-        {
-          id: 1,
-          type: 'payment_followup',
-          date: '2024-01-16',
-          method: 'call',
-          content: 'Follow-up call regarding overdue payment',
-          status: 'completed'
-        },
-        {
-          id: 2,
-          type: 'payment_reminder',
-          date: '2024-01-12',
-          method: 'sms',
-          content: 'Payment overdue notification',
-          status: 'sent'
-        }
-      ]
-    }
-  ])
-
+  const [customers, setCustomers] = useState([])
   const [stats, setStats] = useState({
-    totalCustomers: 145,
-    activeCustomers: 132,
-    newThisMonth: 23,
-    watchList: 8,
-    totalPortfolio: 12500000,
-    averageScore: 685,
-    collectionRate: 94.2
+    totalCustomers: 0,
+    activeCustomers: 0,
+    newThisMonth: 0,
+    watchList: 0,
+    totalPortfolio: 0,
+    averageScore: 0,
+    collectionRate: 0
   })
+
+  useEffect(() => {
+    fetchCustomers()
+    fetchStats()
+  }, [])
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await customerService.listCustomers()
+      setCustomers(response.data)
+    } catch (error) {
+      console.error('Failed to fetch customers:', error)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await customerService.getCustomerStats()
+      setStats(response.data)
+    } catch (error) {
+      console.error('Failed to fetch customer stats:', error)
+    }
+  }
 
   const getStatusColor = (status) => {
     const colors = {
@@ -346,10 +153,14 @@ const CustomerManagement = () => {
     )
   }
 
-  const handleBulkAction = (action) => {
-    console.log(`Performing ${action} on customers:`, selectedCustomers)
-    // Implement bulk actions
-    setSelectedCustomers([])
+  const handleBulkAction = async (action) => {
+    try {
+      await customerService.bulkAction({ action, customerIds: selectedCustomers })
+      setSelectedCustomers([])
+      fetchCustomers()
+    } catch (error) {
+      console.error('Bulk action failed:', error)
+    }
   }
 
   const StatsOverview = () => (
