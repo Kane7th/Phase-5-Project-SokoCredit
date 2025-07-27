@@ -1,8 +1,50 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
+import * as jwt_decode from 'jwt-decode'
 
-// Async thunks
+const jwtDecode = jwt_decode.default || jwt_decode
+
+export const parseJwt = (token) => {
+  try {
+    const decoded = jwtDecode(token)
+    const identity = decoded.sub || decoded.identity
+
+    let user_id = null
+    let role = null
+
+    if (typeof identity === 'string' && identity.includes(':')) {
+      const [idPart, rolePart] = identity.split(':')
+      user_id = parseInt(idPart.replace(/\D/g, ''), 10)
+      role = rolePart
+    } else if (typeof identity === 'number') {
+      user_id = identity
+      role = 'admin'
+    }
+
+    return { user_id, role }
+  } catch {
+    return { user_id: null, role: null }
+  }
+}
+
+const access_token = localStorage.getItem('access_token')
+const refresh_token = localStorage.getItem('refresh_token')
+const { user_id, role } = parseJwt(access_token || '')
+
+const initialState = {
+  user: null,
+  token: access_token || null,
+  refreshToken: refresh_token || null,
+  user_id: user_id || null,
+  role: role || null,
+  isAuthenticated: !!access_token,
+  isLoading: false,
+  error: null,
+  registrationStep: 1,
+  registrationData: {},
+}
+
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
@@ -41,17 +83,6 @@ export const getCurrentUser = createAsyncThunk(
   }
 )
 
-const initialState = {
-  user: null,
-  token: localStorage.getItem('access_token'),
-  refreshToken: localStorage.getItem('refresh_token'),
-  isLoading: false,
-  isAuthenticated: !!localStorage.getItem('access_token'),
-  error: null,
-  registrationStep: 1,
-  registrationData: {},
-}
-
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -63,6 +94,8 @@ const authSlice = createSlice({
       state.user = null
       state.token = null
       state.refreshToken = null
+      state.user_id = null
+      state.role = null
       state.isAuthenticated = false
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
@@ -92,6 +125,9 @@ const authSlice = createSlice({
         state.token = action.payload.access_token
         state.refreshToken = action.payload.refresh_token
         state.isAuthenticated = true
+        const { user_id, role } = parseJwt(action.payload.access_token)
+        state.user_id = user_id
+        state.role = role
         toast.success('Login successful!')
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -100,7 +136,7 @@ const authSlice = createSlice({
         state.isAuthenticated = false
         toast.error(action.payload || 'Login failed')
       })
-      
+
       // Register
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true
@@ -115,7 +151,7 @@ const authSlice = createSlice({
         state.error = action.payload
         toast.error(action.payload || 'Registration failed')
       })
-      
+
       // Get current user
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.user = action.payload.user
@@ -125,6 +161,8 @@ const authSlice = createSlice({
         state.user = null
         state.token = null
         state.refreshToken = null
+        state.user_id = null
+        state.role = null
         state.isAuthenticated = false
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
