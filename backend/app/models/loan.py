@@ -47,6 +47,11 @@ class Loan(db.Model, SerializerMixin):
     def total_repaid(self):
         return sum(r.amount_paid for r in self.repayments)
     
+    @property
+    def outstanding_balance(self):
+        total_due = self.amount + (self.amount * self.interest_rate / 100)
+        return round(total_due - self.total_repaid, 2)
+    
     def __repr__(self):
         return f'<Loan id={self.id} amount={self.amount} status={self.status} borrower_id={self.borrower_id} lender_id={self.lender_id}>'
     

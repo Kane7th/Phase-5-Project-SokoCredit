@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db
-from app.models import User, Loan, Repayment
+from app.models import User, Loan, Repayment, RepaymentSchedule
+from app.models.repaymentSchedule import RepaymentStatus
 from app.models.loan import LoanStatus
+from utils.repayment_status import update_schedule_status
 from datetime import datetime
 
 callback_bp = Blueprint('callback_bp', __name__, url_prefix='/mpesa-callback')
@@ -53,16 +55,33 @@ def mpesa_stk_callback():
             if not loan:
                 return jsonify({"message": "Loan not found"}), 404
 
-            # Save the repayment
+            # find next unpaid repayment schedule
+            schedule = RepaymentSchedule.query.filter_by(
+                    loan_id=loan.id
+                ).filter(
+                    RepaymentSchedule.status != RepaymentStatus.paid
+                ).order_by(RepaymentSchedule.due_date.asc()).first()
+            if not schedule:
+                 return jsonify({"message": "No due schedule found"}), 404
+             
+            # create the repayment entry
             repayment = Repayment(
                 user_id=user.id,
                 loan_id=loan.id,
                 amount_paid=amount,
                 paid_at=paid_at,
-                mpesa_code=receipt
+                mpesa_code=receipt,
+                schedule_id=schedule.id
             )
-
             db.session.add(repayment)
+            
+            # update repaymentschedule status, loan's total_repaid amt and status
+            update_schedule_status(schedule)
+            loan.total_repaid += float(amount)
+            
+            if loan.outstanding_balance <= 0:
+                loan.status = LoanStatus.completed
+            
             db.session.commit()
 
             return jsonify({"message": "Repayment recorded"}), 200
