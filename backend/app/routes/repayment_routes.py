@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from utils.decorators import role_required
 from app.extensions import db
@@ -9,7 +9,7 @@ repayment_bp = Blueprint('repayment_bp', __name__, url_prefix='/repayments')
 # customer GET repayment history
 @repayment_bp.route('/history', methods=['GET'])
 @jwt_required()
-@role_required(['mama_mboga'])
+@role_required(['customer'])
 def repayment_history():
     try:
         user_id = get_jwt_identity().split(':')[0]

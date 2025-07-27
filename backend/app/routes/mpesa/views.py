@@ -11,7 +11,7 @@ mpesa_bp = Blueprint('mpesa', __name__, url_prefix='/mpesa')
 
 @mpesa_bp.route('/stk-push', methods=['POST'])
 @jwt_required()
-@role_required('mama_mboga')
+@role_required('customer')
 def stk_push():
     
     # get authenticated user
