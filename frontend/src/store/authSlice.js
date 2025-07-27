@@ -45,6 +45,7 @@ const initialState = {
   registrationData: {},
 }
 
+
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
@@ -75,9 +76,12 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async (data, { rejectWithValue }) => {
     try {
+      console.log("authService.register called with data:", data)
       const response = await authService.register(data)
+      console.log("authService.register response:", response)
       return response
     } catch (err) {
+      console.error("authService.register error:", err)
       return rejectWithValue(err.response?.data?.error || 'Registration failed')
     }
   }
@@ -144,26 +148,27 @@ const authSlice = createSlice({
         state.user_id = action.payload.user_id
 
         // Normalize role names for frontend consistency
-        let normalizedRole = action.payload.role
-        if (normalizedRole) {
-          normalizedRole = normalizedRole.toLowerCase()
-          if (normalizedRole === 'lender') {
-            normalizedRole = 'loan_officer'
-          } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
-            normalizedRole = 'customer'
-          }
+      let normalizedRole = action.payload.role
+      if (normalizedRole) {
+        normalizedRole = normalizedRole.toLowerCase()
+        if (normalizedRole === 'lender') {
+          normalizedRole = 'loan_officer'
+        } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+          normalizedRole = 'customer'
         }
+      }
 
-        state.role = normalizedRole
-        state.user = action.payload.user
+      state.role = normalizedRole
+      state.user = action.payload.user
 
-        // Update user.role to normalized role for consistency
-        if (state.user) {
-          state.user.role = normalizedRole
-        }
+      // Update user.role to normalized role for consistency
+      if (state.user) {
+        state.user.role = normalizedRole
+      }
 
-        state.isAuthenticated = true
-        toast.success('Login successful!')
+      state.isAuthenticated = true
+      toast.success('Login successful!')
+
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false
@@ -190,22 +195,23 @@ const authSlice = createSlice({
         state.user = action.payload.user
 
         // Normalize role names for frontend consistency
-        if (state.user && state.user.role) {
-          let normalizedRole = state.user.role.toLowerCase()
-          if (normalizedRole === 'lender') {
-            normalizedRole = 'loan_officer'
-          } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
-            normalizedRole = 'customer'
-          }
-          state.role = normalizedRole
-
-          // Update user.role to normalized role for consistency
-          if (state.user) {
-            state.user.role = normalizedRole
-          }
+      if (state.user && state.user.role) {
+        let normalizedRole = state.user.role.toLowerCase()
+        if (normalizedRole === 'lender') {
+          normalizedRole = 'loan_officer'
+        } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+          normalizedRole = 'customer'
         }
+        state.role = normalizedRole
 
-        state.isAuthenticated = true
+        // Update user.role to normalized role for consistency
+        if (state.user) {
+          state.user.role = normalizedRole
+        }
+      }
+
+      state.isAuthenticated = true
+
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
         state.user = null
