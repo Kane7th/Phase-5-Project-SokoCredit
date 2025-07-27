@@ -10,6 +10,8 @@ import Layout from './components/common/Layout'
 import NotificationListener from './components/NotificationListener'
 import ProfilePage from './components/customer/ProfilePage'
 import Settings from './components/common/Settings'
+import ChangePassword from './components/auth/ChangePassword'
+import ForgotPassword from './components/auth/ForgotPassword'
 
 function App() {
   const { isAuthenticated, user_id, role, token } = useSelector((state) => state.auth)
@@ -55,6 +57,17 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'lender', 'customer']}>
+              <ChangePassword />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -54,5 +54,29 @@ export const authService = {
       value
     })
     return response
+  },
+
+  // Forgot password
+  forgotPassword: async (emailOrPhone) => {
+    const response = await api.post('/auth/forgot-password', { email: emailOrPhone, phone: emailOrPhone })
+    return response
+  },
+
+  // Reset password
+  resetPassword: async (token, newPassword) => {
+    const response = await api.post('/auth/reset-password', { token, new_password: newPassword })
+    return response
+  },
+
+  // Verify phone
+  verifyPhone: async (phone, otp) => {
+    const response = await api.post('/auth/verify-phone', { phone, otp })
+    return response
+  },
+
+  // Verify email
+  verifyEmail: async (email, otp) => {
+    const response = await api.post('/auth/verify-email', { email, otp })
+    return response
   }
 }
