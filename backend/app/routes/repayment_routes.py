@@ -6,8 +6,9 @@ from app.models import  User, Repayment
 
 repayment_bp = Blueprint('repayment_bp', __name__, url_prefix='/repayments')
 
-# Mama mboga GET repayment history
+# customer GET repayment history
 @repayment_bp.route('/history', methods=['GET'])
+@jwt_required()
 @role_required(['mama_mboga'])
 def repayment_history():
     try:
@@ -33,13 +34,22 @@ def repayment_history():
 @jwt_required()
 @role_required(['lender', 'admin'])
 def all_repayments_made():
+    """
+    admins can see all repayments but lenders see their assigned users' repayments only
+    """
     try:
         identity = get_jwt_identity()
         user_id, role = identity.split(':')
         
-        if role == 'admin' or role == 'admin':
+        if role == 'admin':
             repayments = Repayment.query.join(User).order_by(Repayment.paid_at.desc()).all()
-    
+        else:
+            repayments = (
+                Repayment.query.join(User)
+                .filter(User.lender_id == user_id)
+                .order_by(Repayment.paid_at.desc()).all()
+            )
+            
         return jsonify([
             {
                 "user": r.user.name,
