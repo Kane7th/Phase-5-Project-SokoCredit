@@ -5,7 +5,7 @@ from sqlalchemy_serializer import SerializerMixin
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
 
-    serialize_rules = ('-customer.user', '-loans', '-issued_loans')
+    serialize_rules = ('-customer_profile.user', '-loans', '-issued_loans')
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -19,20 +19,27 @@ class User(db.Model, SerializerMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='customer', nullable=False)
 
-    loans = db.relationship('Loan', back_populates='borrower', foreign_keys="Loan.borrower_id", cascade="all, delete-orphan")
-    issued_loans = db.relationship("Loan", back_populates="lender", foreign_keys="Loan.lender_id")
-    repayments = db.relationship("Repayment", back_populates="user", cascade="all, delete-orphan")
+    # Loans where user is the borrower
+    loans = db.relationship("Loan", foreign_keys="Loan.customer_id", back_populates="customer")
 
+    # Loans where user is the lender
+    issued_loans = db.relationship("Loan", foreign_keys="Loan.lender_id", back_populates="lender")
+
+    # Repayments made by the customer
+    repayments = db.relationship("Repayment", back_populates="customer", cascade="all, delete-orphan")
+
+    # Customers created by this user (if role is lender/admin)
     created_customers = db.relationship(
         'Customer',
         back_populates='created_by_user',
         foreign_keys='Customer.created_by'
     )
 
+    # Link to customer's profile
     customer_profile = db.relationship(
         'Customer',
         back_populates='customer_user',
-        foreign_keys='Customer.mama_mboga_user_id',  # Keep foreign key the same unless changed in Customer model
+        foreign_keys='Customer.customer_user_id',  # ✅ Updated from mama_mboga_user_id
         uselist=False
     )
 

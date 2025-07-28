@@ -110,13 +110,6 @@ def logout():
     return jsonify({"msg": "Successfully logged out"}), 200
 
 
-@auth_bp.route("/logout-all", methods=["POST"])
-@jwt_required()
-@role_required(["admin"])
-def logout_all():
-    return jsonify({"msg": "All sessions logged out"}), 200
-
-
 @auth_bp.route("/refresh-token", methods=["POST"])
 @jwt_required(refresh=True)
 def refresh_token():
@@ -275,5 +268,6 @@ def send_email_otp():
 # Helper function
 def extract_identity():
     identity = get_jwt_identity()
+    print("DEBUG JWT identity:", identity)
     user_id_str, role = identity.split(":")
-    return int(user_id_str), role
+    return int(user_id_str.replace("user_", "")), role

@@ -190,10 +190,11 @@ def get_customer(customer_id):
 
 @customers_bp.route("/my_customers", methods=["GET"])
 @jwt_required()
-@role_required("admin", "lender")
+@role_required(['admin', 'lender'])
 def get_my_customers():
     identity = get_jwt_identity()
-    user_id = identity if isinstance(identity, int) else int(identity.split("_")[-1])
+    user_id_str, _ = identity.split(":")
+    user_id = int(user_id_str)
     customers = Customer.query.filter_by(lender_id=user_id).all()
 
     print(f"[AUDIT LOG] User {user_id} listed their own customers at {datetime.utcnow().isoformat()}.")
