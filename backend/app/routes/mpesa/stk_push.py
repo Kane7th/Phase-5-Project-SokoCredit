@@ -6,7 +6,7 @@ from .client import get_access_token
 
 def send_stk_push(phone_number: str, amount: int, account_ref='SokoCredit', description='Loan payments'):
     """
-    Helper function handling STK Push request logic, later will be 
+    Helper func. handling STK Push request logic, later will be 
     imported into views.py.
     """
     
