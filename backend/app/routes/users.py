@@ -1,8 +1,7 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models.user import User
-# from app.utils.auth_helpers import extract_identity
 
 users_bp = Blueprint("users_bp", __name__, url_prefix="/api/users")
 
@@ -27,3 +26,10 @@ def change_password():
 
     print(f"[AUDIT LOG] User {user.username} changed their password")
     return jsonify({"msg": "Password changed successfully"}), 200
+
+
+# Helper function to extract identity
+def extract_identity():
+    identity = get_jwt_identity()
+    user_id_str, role = identity.split(":")
+    return int(user_id_str), role
