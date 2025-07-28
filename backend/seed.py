@@ -38,11 +38,11 @@ with app.app_context():
         ),
         User(
             first_name="Mama", middle_name="", last_name="Mboga One",
-            username="Mama Mboga One", phone="0700000003", email="mama1@sokocredit.com", role="mama_mboga"
+            username="Mama Mboga One", phone="0700000003", email="mama1@sokocredit.com", role="customer"
         ),
         User(
             first_name="Mama", middle_name="", last_name="Mboga Two",
-            username="Mama Mboga Two", phone="0700000005", email="mama2@sokocredit.com", role="mama_mboga"
+            username="Mama Mboga Two", phone="0700000005", email="mama2@sokocredit.com", role="customer"
         )
     ]
     for u in users:
