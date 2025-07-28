@@ -39,7 +39,7 @@ class User(db.Model, SerializerMixin):
     customer_profile = db.relationship(
         'Customer',
         back_populates='customer_user',
-        foreign_keys='Customer.customer_user_id',  # ✅ Updated from mama_mboga_user_id
+        foreign_keys='Customer.customer_user_id',  #  Updated from mama_mboga_user_id
         uselist=False
     )
 
