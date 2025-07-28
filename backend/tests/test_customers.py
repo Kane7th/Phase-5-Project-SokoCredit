@@ -35,7 +35,7 @@ def test_get_customer_by_id(client, headers_lender):
     assert res.status_code == 200
     assert res.get_json()["full_name"] == "Jane Doe"
 
-def test_mama_mboga_restriction(client, headers_mboga):
+def test_customer_role_restriction(client, headers_customer):
     customer = Customer(
         full_name="Unauthorized", phone="0700000000", business_name="Block",
         location="Mombasa", documents={}, created_by=999
@@ -43,7 +43,7 @@ def test_mama_mboga_restriction(client, headers_mboga):
     db.session.add(customer)
     db.session.commit()
 
-    res = client.get(f"/customers/{customer.id}", headers=headers_mboga)
+    res = client.get(f"/customers/{customer.id}", headers=headers_customer)
     assert res.status_code == 403
 
 def test_search_and_pagination(client, headers_admin):
