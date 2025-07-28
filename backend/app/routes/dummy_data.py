@@ -25,7 +25,7 @@ analytics_performance = {
 
 # CUSTOMER SEGMENTATION
 customer_segments = [
-    {"segment": "Mama Mboga", "count": 210},
+    {"segment": "Customer", "count": 210},
     {"segment": "Boda Boda", "count": 130},
     {"segment": "Shop Owners", "count": 95},
     {"segment": "Others", "count": 48},

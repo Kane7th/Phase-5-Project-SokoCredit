@@ -23,11 +23,26 @@ with app.app_context():
     print("👤 Seeding users...")
 
     users = [
-        User(username="Admin", phone="0700000001", email="admin@sokocredit.com", role="admin"),
-        User(username="Lender One", phone="0700000002", email="lender1@sokocredit.com", role="lender"),
-        User(username="Lender Two", phone="0700000004", email="lender2@sokocredit.com", role="lender"),
-        User(username="Mama Mboga One", phone="0700000003", email="mama1@sokocredit.com", role="mama_mboga"),
-        User(username="Mama Mboga Two", phone="0700000005", email="mama2@sokocredit.com", role="mama_mboga")
+        User(
+            first_name="Admin", middle_name="", last_name="User",
+            username="Admin", phone="0700000001", email="admin@sokocredit.com", role="admin"
+        ),
+        User(
+            first_name="Lender", middle_name="", last_name="One",
+            username="Lender One", phone="0700000002", email="lender1@sokocredit.com", role="lender"
+        ),
+        User(
+            first_name="Lender", middle_name="", last_name="Two",
+            username="Lender Two", phone="0700000004", email="lender2@sokocredit.com", role="lender"
+        ),
+        User(
+            first_name="Mama", middle_name="", last_name="Mboga One",
+            username="Mama Mboga One", phone="0700000003", email="mama1@sokocredit.com", role="mama_mboga"
+        ),
+        User(
+            first_name="Mama", middle_name="", last_name="Mboga Two",
+            username="Mama Mboga Two", phone="0700000005", email="mama2@sokocredit.com", role="mama_mboga"
+        )
     ]
     for u in users:
         u.set_password("password")
@@ -37,6 +52,7 @@ with app.app_context():
     print("✅ Users created. (Default password: 'password')\n")
 
     print("📬 Seeding notifications...")
+
     def generate_notifications(user):
         messages = [
             f"📢 Welcome {user.username} to SokoCredit!",
@@ -52,6 +68,7 @@ with app.app_context():
                 created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 10))
             )
             db.session.add(n)
+
     for user in users:
         generate_notifications(user)
     db.session.commit()
@@ -67,7 +84,8 @@ with app.app_context():
             location='Gikomba, Nairobi',
             business_name='Fatuma Veggies',
             documents={"id_card": "id_doc1.jpg", "shop_photo": "shop1.jpg"},
-            created_by=users[3].id
+            created_by=users[3].id,
+            mama_mboga_user_id=users[3].id
         ),
         Customer(
             full_name='Amina Yusuf',
@@ -75,7 +93,8 @@ with app.app_context():
             location='Kawangware, Nairobi',
             business_name='Amina Fruits',
             documents={"id_card": "id_doc2.jpg", "shop_photo": "shop2.jpg"},
-            created_by=users[4].id
+            created_by=users[4].id,
+            mama_mboga_user_id=users[4].id
         )
     ]
     db.session.add_all(customers)
@@ -112,10 +131,12 @@ with app.app_context():
 
     def seed_loan(borrower_user, customer_obj, loan_product, lender_user):
         issued_date = datetime.now(timezone.utc) - timedelta(days=random.randint(0, 20))
+        amount = random.randint(10000, int(loan_product.max_amount))
+
         loan = Loan(
             borrower_id=borrower_user.id,
             lender_id=lender_user.id,
-            amount=random.randint(10000, int(loan_product.max_amount)),
+            amount=amount,
             interest_rate=loan_product.interest_rate,
             duration_months=loan_product.duration_months,
             status=random.choice(['disbursed', 'approved']),
@@ -131,12 +152,13 @@ with app.app_context():
         schedules = []
         for i in range(3):
             due = issued_date + timedelta(days=30 * (i + 1))
-            schedules.append(RepaymentSchedule(
+            schedule = RepaymentSchedule(
                 loan_id=loan.id,
                 due_date=due,
-                amount_due=round(loan.amount / 3, 2),
+                amount_due=round(amount / 3, 2),
                 status=random.choice(['unpaid', 'partial', 'paid'])
-            ))
+            )
+            schedules.append(schedule)
         db.session.add_all(schedules)
         db.session.commit()
 
@@ -153,6 +175,7 @@ with app.app_context():
             db.session.add(repayment)
         db.session.commit()
 
+    # Seed loans
     seed_loan(users[3], customers[0], loan_products[0], users[1])  # Mama Mboga One + Lender One
     seed_loan(users[4], customers[1], loan_products[1], users[2])  # Mama Mboga Two + Lender Two
 

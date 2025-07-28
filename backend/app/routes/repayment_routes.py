@@ -8,42 +8,54 @@ from app.models import RepaymentSchedule, Loan, User, Repayment
 repayment_bp = Blueprint('repayment_bp', __name__, url_prefix='/repayments')
 repayment_schedule_bp = Blueprint('repayment_schedule_bp', __name__, url_prefix='/repayment-schedules')
 
-# Mama mboga GET all scheduled payments
+
+# Customer GET all scheduled payments
 @repayment_schedule_bp.route('', methods=['GET'])
-@role_required(['mama_mboga'])
+@role_required(['customer'])
 def get_incoming_schedules():
     try:
         user_id = get_jwt_identity().split(':')[0]
-        
+
         schedules = (
-            RepaymentSchedule.query.join(Loan).filter(Loan.borrower_id == user_id)
+            RepaymentSchedule.query
+            .join(Loan)
+            .filter(Loan.borrower_id == user_id)
             .filter(RepaymentSchedule.status == 'pending')
             .order_by(RepaymentSchedule.due_date.asc())
             .all()
         )
         return jsonify([schedule.to_dict() for schedule in schedules]), 200
+
     except Exception as e:
-        return jsonify({'error': f'Server error: {str(e)}'}, 500)
-    
-# All users can see all repayments
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+
+# All users can see repayments (filtered)
 @repayment_bp.route('', methods=['GET'])
 @jwt_required()
-@role_required(['mama_mboga', 'lender', 'admin'])
+@role_required(['customer', 'lender', 'admin'])
 def view_loan_repayments():
     try:
         identity = get_jwt_identity()
         user_id, role = identity.split(':')
-        
-        if role == 'mama_mboga':
-            repayments = Repayment.query.filter_by(user_id=user_id).order_by(Repayment.paid_at.desc()).all()
+
+        if role == 'customer':
+            repayments = (
+                Repayment.query
+                .filter_by(user_id=user_id)
+                .order_by(Repayment.paid_at.desc())
+                .all()
+            )
         else:
             repayments = Repayment.query.order_by(Repayment.paid_at.desc()).all()
+
         return jsonify([r.to_dict() for r in repayments]), 200
-    
+
     except Exception as e:
         return jsonify({'error': 'Failed to fetch repayments', 'message': str(e)}), 500
-    
-# Mama mboga POST a payment
+
+
+# Customer POST a payment (via M-Pesa webhook simulation)
 @repayment_bp.route('/mpesa-webhook', methods=['POST'])
 def mpesa_webhook():
     try:
@@ -59,7 +71,6 @@ def mpesa_webhook():
         if not user:
             return jsonify({'error': 'User with this phone not found'}), 404
 
-        # Find the earliest pending repayment for this user
         schedule = (
             RepaymentSchedule.query
             .join(Loan)
@@ -89,6 +100,3 @@ def mpesa_webhook():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Payment error: {str(e)}"}), 500
-
-
-

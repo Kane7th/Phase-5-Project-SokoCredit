@@ -12,15 +12,15 @@ notifications_bp = Blueprint("notifications", __name__, url_prefix="/api/users/n
 def extract_user_id(identity):
     """
     Handles formats like:
-    - "user_9"
-    - "user_9:admin"
+    - "9:customer"
+    - "9:admin"
     - 9 (int)
     """
     if isinstance(identity, int):
         return identity
-    if isinstance(identity, str) and identity.startswith("user_"):
+    if isinstance(identity, str) and ":" in identity:
         try:
-            return int(identity.split("_")[1].split(":")[0])
+            return int(identity.split(":")[0])
         except (IndexError, ValueError):
             return None
     return None
@@ -31,6 +31,7 @@ def extract_user_id(identity):
 def get_notifications():
     raw_identity = get_jwt_identity()
     user_id = extract_user_id(raw_identity)
+
     if not user_id:
         return jsonify({"error": "Invalid identity format"}), 400
 
@@ -43,6 +44,7 @@ def get_notifications():
 def mark_read(notification_id):
     raw_identity = get_jwt_identity()
     user_id = extract_user_id(raw_identity)
+
     if not user_id:
         return jsonify({"error": "Invalid identity format"}), 400
 
@@ -59,6 +61,7 @@ def mark_read(notification_id):
 def delete_notification(notification_id):
     raw_identity = get_jwt_identity()
     user_id = extract_user_id(raw_identity)
+
     if not user_id:
         return jsonify({"error": "Invalid identity format"}), 400
 
@@ -74,14 +77,10 @@ def delete_notification(notification_id):
 @notifications_bp.route("/create-test", methods=["POST"])
 @jwt_required()
 def create_test_notification():
-    identity = get_jwt_identity()
+    raw_identity = get_jwt_identity()
+    user_id = extract_user_id(raw_identity)
 
-    # Extract user_id
-    if isinstance(identity, str) and identity.startswith("user_"):
-        user_id = int(identity.split("_")[1].split(":")[0])
-    elif isinstance(identity, int):
-        user_id = identity
-    else:
+    if not user_id:
         return jsonify({"error": "Invalid user identity"}), 400
 
     user = User.query.get(user_id)
@@ -93,9 +92,9 @@ def create_test_notification():
 
     notif = Notification.create_notification(user_id=user_id, message=message)
 
-    # 🔥 Emit the event to the user room
+    # Emit real-time notification
     socketio.emit(
-        f"notification:{user_id}", 
+        f"notification:{user_id}",
         notif.to_dict(),
         namespace="/notifications"
     )
