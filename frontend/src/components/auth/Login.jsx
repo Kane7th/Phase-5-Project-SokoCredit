@@ -23,7 +23,23 @@ const Login = () => {
     setValue
   } = useForm()
 
-  const watchedIdentifier = watch('identifier')
+  const watchedCredential = watch('credential')
+
+  useEffect(() => {
+    return () => dispatch(clearError())
+  }, [dispatch])
+
+  useEffect(() => {
+    if (watchedCredential) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const phonePattern = /^[+]?[\d\s-()]+$/
+      if (emailPattern.test(watchedCredential)) {
+        setLoginType('email')
+      } else if (phonePattern.test(watchedCredential)) {
+        setLoginType('phone')
+      }
+    }
+  }, [watchedCredential])
 
   useEffect(() => {
     if (isAuthenticated && token) {
@@ -41,7 +57,7 @@ const Login = () => {
             role = 'mama_mboga'
           } else if (identity.includes(':')) {
             const [id, r] = identity.split(':')
-            userId = parseInt(id)
+            userId = parseInt(id.replace('user_', ''))
             role = r
           } else {
             userId = parseInt(identity)
@@ -51,6 +67,8 @@ const Login = () => {
           userId = identity
           role = 'admin'
         }
+
+        if (!role) throw new Error('Invalid role in token')
 
         localStorage.setItem('user_id', userId)
         localStorage.setItem('user_role', role)
@@ -71,46 +89,28 @@ const Login = () => {
             navigate('/dashboard')
         }
       } catch (err) {
-        console.error('Invalid token:', err)
+        console.error('Token decode failed:', err)
+        navigate('/login')
       }
     }
   }, [isAuthenticated, token, navigate, dispatch])
 
-  useEffect(() => {
-    return () => dispatch(clearError())
-  }, [dispatch])
-
-  useEffect(() => {
-    if (watchedIdentifier) {
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      const phonePattern = /^[+]?[\d\s-()]+$/
-
-      if (emailPattern.test(watchedIdentifier)) {
-        setLoginType('email')
-      } else if (phonePattern.test(watchedIdentifier)) {
-        setLoginType('phone')
-      }
-    }
-  }, [watchedIdentifier])
-
   const onSubmit = (data) => {
     const credentials = {
-      identifier: data.identifier.trim(),
-      password: data.password,
-      login_type: loginType
+      credential: data.credential.trim(),
+      password: data.password
     }
-
     dispatch(loginUser(credentials))
   }
 
   const demoAccounts = [
-    { role: 'Admin', username: 'admin@sokocredit.com', password: 'admin123' },
-    { role: 'Loan Officer', username: 'officer@sokocredit.com', password: 'officer123' },
-    { role: 'Customer', username: 'customer@sokocredit.com', password: 'customer123' },
+    { role: 'Admin', username: 'admin@sokocredit.com', password: 'password' },
+    { role: 'Loan Officer', username: 'lender1@sokocredit.com', password: 'password' },
+    { role: 'Customer', username: 'mama1@sokocredit.com', password: 'password' }
   ]
 
   const fillDemoAccount = (account) => {
-    setValue('identifier', account.username)
+    setValue('credential', account.username)
     setValue('password', account.password)
     setLoginType('email')
   }
@@ -129,16 +129,16 @@ const Login = () => {
 
           <div className="form-group">
             <label className="form-label">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="flex items-center gap-2">
                 {loginType === 'email' ? <Mail size={16} /> : <Phone size={16} />}
                 Email or Phone Number
               </div>
             </label>
             <input
               type="text"
-              className={`form-input ${errors.identifier ? 'error' : ''}`}
+              className={`form-input ${errors.credential ? 'error' : ''}`}
               placeholder="Enter your email or phone number"
-              {...register('identifier', {
+              {...register('credential', {
                 required: 'Email or phone number is required',
                 validate: (value) => {
                   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -150,12 +150,12 @@ const Login = () => {
                 }
               })}
             />
-            {errors.identifier && <div className="text-error">{errors.identifier.message}</div>}
+            {errors.credential && <div className="text-error">{errors.credential.message}</div>}
           </div>
 
           <div className="form-group">
             <label className="form-label">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="flex items-center gap-2">
                 <Lock size={16} />
                 Password
               </div>
@@ -181,42 +181,35 @@ const Login = () => {
             {errors.password && <div className="text-error">{errors.password.message}</div>}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0' }}>
-            <div className="form-checkbox-wrapper">
-              <input type="checkbox" id="remember" className="form-checkbox" {...register('remember')} />
-              <label htmlFor="remember" style={{ fontSize: '14px', color: 'var(--gray-600)' }}>
-                Remember me
-              </label>
+            <div className="flex justify-between items-center my-4">
+              <div className="form-checkbox-wrapper">
+                <input type="checkbox" id="remember" className="form-checkbox" {...register('remember')} />
+                <label htmlFor="remember" className="text-sm text-gray-600">
+                  Remember me
+                </label>
+              </div>
+              <a href="/forgot-password" className="forgot-password">Forgot password?</a>
             </div>
-            <a href="#" className="forgot-password">Forgot password?</a>
-          </div>
 
           <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
             {isLoading ? (
               <>
                 <LoadingSpinner size="sm" />
-                <span style={{ marginLeft: '8px' }}>Signing in...</span>
+                <span className="ml-2">Signing in...</span>
               </>
             ) : (
               'Sign In'
             )}
           </button>
 
-          <div className="demo-accounts">
+          <div className="demo-accounts mt-4">
             <div className="demo-title">Demo Accounts:</div>
             {demoAccounts.map((account, index) => (
               <div key={index} className="demo-account">
                 <button
                   type="button"
                   onClick={() => fillDemoAccount(account)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary-blue)',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
+                  className="text-xs text-blue-600 underline cursor-pointer"
                 >
                   {account.role}: {account.username}
                 </button>
@@ -224,10 +217,8 @@ const Login = () => {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: '24px' }}>
-            <span style={{ color: 'var(--gray-500)', fontSize: '14px' }}>
-              Don't have an account?{' '}
-            </span>
+          <div className="text-center mt-6 text-sm text-gray-500">
+            Don’t have an account?{' '}
             <Link to="/register" className="forgot-password">Register as Lender</Link>
           </div>
         </form>

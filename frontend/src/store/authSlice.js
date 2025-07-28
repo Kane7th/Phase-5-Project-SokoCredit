@@ -1,12 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
-
-// ✅ Fallback-safe import for jwt-decode
 import * as jwt_decode from 'jwt-decode'
+
 const jwtDecode = jwt_decode.default || jwt_decode
 
-// 🔧 Global utility to parse user ID and role from JWT
 export const parseJwt = (token) => {
   try {
     const decoded = jwtDecode(token)
@@ -25,72 +23,81 @@ export const parseJwt = (token) => {
     }
 
     return { user_id, role }
-  } catch (e) {
+  } catch {
     return { user_id: null, role: null }
   }
 }
 
-// 🔐 Login
-export const loginUser = createAsyncThunk(
-  'auth/login',
-  async (credentials, { rejectWithValue }) => {
-    try {
-      const response = await authService.login(credentials)
-
-      const { access_token, refresh_token } = response
-      const { user_id, role } = parseJwt(access_token)
-
-      // Save in localStorage
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
-      localStorage.setItem('user_id', user_id)
-      localStorage.setItem('user_role', role)
-
-      return { ...response, user_id, role }
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.error || 'Login failed')
-    }
-  }
-)
-
-// 📝 Register
-export const registerUser = createAsyncThunk(
-  'auth/register',
-  async (userData, { rejectWithValue }) => {
-    try {
-      const response = await authService.register(userData)
-      return response
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.error || 'Registration failed')
-    }
-  }
-)
-
-// 👤 Fetch Current User
-export const getCurrentUser = createAsyncThunk(
-  'auth/getCurrentUser',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await authService.getCurrentUser()
-      return response
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to get user')
-    }
-  }
-)
+const access_token = localStorage.getItem('access_token')
+const refresh_token = localStorage.getItem('refresh_token')
+const { user_id, role } = parseJwt(access_token || '')
 
 const initialState = {
   user: null,
-  token: localStorage.getItem('access_token'),
-  refreshToken: localStorage.getItem('refresh_token'),
-  user_id: localStorage.getItem('user_id'),
-  role: localStorage.getItem('user_role'),
+  token: access_token || null,
+  refreshToken: refresh_token || null,
+  user_id: user_id || null,
+  role: role || null,
+  isAuthenticated: !!access_token,
   isLoading: false,
-  isAuthenticated: !!localStorage.getItem('access_token'),
   error: null,
   registrationStep: 1,
   registrationData: {},
 }
+
+
+export const loginUser = createAsyncThunk(
+  'auth/login',
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const response = await authService.login({
+        credential: credentials.credential,
+        password: credentials.password,
+      })
+      const data = response.data || response
+      localStorage.setItem('access_token', data.access_token)
+      localStorage.setItem('refresh_token', data.refresh_token)
+      return {
+        user: data.user,
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        user_id: data.user?.id,
+        role: data.user?.role,
+      }
+    } catch (error) {
+      const message =
+        error.response?.data?.error || error.message || 'Login failed'
+      return rejectWithValue(message)
+    }
+  }
+)
+
+export const registerUser = createAsyncThunk(
+  'auth/register',
+  async (data, { rejectWithValue }) => {
+    try {
+      console.log("authService.register called with data:", data)
+      const response = await authService.register(data)
+      console.log("authService.register response:", response)
+      return response
+    } catch (err) {
+      console.error("authService.register error:", err)
+      return rejectWithValue(err.response?.data?.error || 'Registration failed')
+    }
+  }
+)
+
+export const getCurrentUser = createAsyncThunk(
+  'auth/getCurrentUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await authService.getCurrentUser()
+      return { user }
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Session expired')
+    }
+  }
+)
 
 const authSlice = createSlice({
   name: 'auth',
@@ -130,20 +137,38 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Login
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true
         state.error = null
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.isLoading = false
-        state.user = action.payload.user
         state.token = action.payload.access_token
         state.refreshToken = action.payload.refresh_token
         state.user_id = action.payload.user_id
-        state.role = action.payload.role
-        state.isAuthenticated = true
-        toast.success('Login successful!')
+
+        // Normalize role names for frontend consistency
+      let normalizedRole = action.payload.role
+      if (normalizedRole) {
+        normalizedRole = normalizedRole.toLowerCase()
+        if (normalizedRole === 'lender') {
+          normalizedRole = 'loan_officer'
+        } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+          normalizedRole = 'customer'
+        }
+      }
+
+      state.role = normalizedRole
+      state.user = action.payload.user
+
+      // Update user.role to normalized role for consistency
+      if (state.user) {
+        state.user.role = normalizedRole
+      }
+
+      state.isAuthenticated = true
+      toast.success('Login successful!')
+
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false
@@ -152,14 +177,13 @@ const authSlice = createSlice({
         toast.error(action.payload || 'Login failed')
       })
 
-      // Register
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true
         state.error = null
       })
       .addCase(registerUser.fulfilled, (state) => {
         state.isLoading = false
-        toast.success('Registration successful! Please wait for approval.')
+        toast.success('Registration successful! You can now log in.')
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false
@@ -167,12 +191,29 @@ const authSlice = createSlice({
         toast.error(action.payload || 'Registration failed')
       })
 
-      // Current User
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.user = action.payload.user
-        state.isAuthenticated = true
+
+        // Normalize role names for frontend consistency
+      if (state.user && state.user.role) {
+        let normalizedRole = state.user.role.toLowerCase()
+        if (normalizedRole === 'lender') {
+          normalizedRole = 'loan_officer'
+        } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+          normalizedRole = 'customer'
+        }
+        state.role = normalizedRole
+
+        // Update user.role to normalized role for consistency
+        if (state.user) {
+          state.user.role = normalizedRole
+        }
+      }
+
+      state.isAuthenticated = true
+
       })
-      .addCase(getCurrentUser.rejected, (state) => {
+      .addCase(getCurrentUser.rejected, (state, action) => {
         state.user = null
         state.token = null
         state.refreshToken = null
@@ -183,6 +224,7 @@ const authSlice = createSlice({
         localStorage.removeItem('refresh_token')
         localStorage.removeItem('user_id')
         localStorage.removeItem('user_role')
+        toast.error(action.payload || 'Session expired. Please log in again.')
       })
   },
 })

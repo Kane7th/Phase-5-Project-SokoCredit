@@ -1,5 +1,4 @@
-import React, { useState,} from 'react'
-// import { useSelector } from 'react-redux'
+import React, { useState, useEffect } from 'react'
 import { 
   TrendingUp, 
   DollarSign, 
@@ -16,85 +15,19 @@ import {
   Percent,
   Clock
 } from 'lucide-react'
-import PortfolioChart from './PortfolioChart'
+import PortofolioChart from './PortofolioChart'
 import CollectionChart from './CollectionChart'
 import RiskAnalysis from './RiskAnalysis'
-import CustomerSegmentation from './CustomerSegmentation'
+import CustomerSegmntation from './CustomerSegmntation'
 import '../../styles/analytics.css'
 
 const AnalyticsDashboard = () => {
-  // const { user } = useSelector((state) => state.auth)
   const [selectedPeriod, setSelectedPeriod] = useState('30d')
   const [activeView, setActiveView] = useState('overview')
   const [isLoading, setIsLoading] = useState(false)
-
-  // Mock analytics data
-  const [analyticsData,] = useState({
-    overview: {
-      totalPortfolio: 15420000,
-      portfolioGrowth: 15.2,
-      activeLoans: 1247,
-      totalCustomers: 1584,
-      collectionRate: 94.2,
-      defaultRate: 2.8,
-      averageLoanSize: 47500,
-      netProfit: 2340000
-    },
-    performance: {
-      disbursed: [
-        { month: 'Oct', amount: 8500000 },
-        { month: 'Nov', amount: 10200000 },
-        { month: 'Dec', amount: 12800000 },
-        { month: 'Jan', amount: 15420000 }
-      ],
-      collections: [
-        { month: 'Oct', target: 1200000, actual: 1150000 },
-        { month: 'Nov', target: 1400000, actual: 1380000 },
-        { month: 'Dec', target: 1600000, actual: 1520000 },
-        { month: 'Jan', target: 1800000, actual: 1695000 }
-      ],
-      loanTypes: [
-        { type: 'Business', value: 65, amount: 10023000 },
-        { type: 'Personal', value: 20, amount: 3084000 },
-        { type: 'Emergency', value: 10, amount: 1542000 },
-        { type: 'Equipment', value: 5, amount: 771000 }
-      ]
-    },
-    customers: {
-      segments: [
-        { segment: 'Mama Mboga', count: 1034, percentage: 65.3, avgLoan: 35000 },
-        { segment: 'General Store', count: 317, percentage: 20.0, avgLoan: 65000 },
-        { segment: 'Restaurant', count: 127, percentage: 8.0, avgLoan: 85000 },
-        { segment: 'Other', count: 106, percentage: 6.7, avgLoan: 45000 }
-      ],
-      demographics: {
-        ageGroups: [
-          { age: '18-25', count: 158, percentage: 10.0 },
-          { age: '26-35', count: 634, percentage: 40.0 },
-          { age: '36-45', count: 475, percentage: 30.0 },
-          { age: '46-55', count: 238, percentage: 15.0 },
-          { age: '55+', count: 79, percentage: 5.0 }
-        ],
-        gender: [
-          { gender: 'Female', count: 1109, percentage: 70.0 },
-          { gender: 'Male', count: 475, percentage: 30.0 }
-        ]
-      }
-    },
-    risk: {
-      distribution: [
-        { risk: 'Low Risk', count: 1109, percentage: 70.0, color: '#059669' },
-        { risk: 'Medium Risk', count: 395, percentage: 25.0, color: '#D97706' },
-        { risk: 'High Risk', count: 80, percentage: 5.0, color: '#DC2626' }
-      ],
-      trends: [
-        { month: 'Oct', low: 68, medium: 27, high: 5 },
-        { month: 'Nov', low: 69, medium: 26, high: 5 },
-        { month: 'Dec', low: 70, medium: 25, high: 5 },
-        { month: 'Jan', low: 70, medium: 25, high: 5 }
-      ]
-    }
-  })
+  const [analyticsData, setAnalyticsData] = useState(null)
+  // eslint-disable-next-line no-unused-vars
+  const [error, setError] = useState(null)
 
   const periodOptions = [
     { value: '7d', label: 'Last 7 days' },
@@ -103,12 +36,45 @@ const AnalyticsDashboard = () => {
     { value: '1y', label: 'Last year' }
   ]
 
-  const refreshData = () => {
+  const fetchAnalyticsData = async () => {
     setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
+    setError(null)
+    try {
+      const overviewRes = await fetch('/api/analytics/overview')
+      if (!overviewRes.ok) throw new Error('Failed to fetch overview data')
+      const overview = await overviewRes.json()
+
+      const performanceRes = await fetch('/api/analytics/performance')
+      if (!performanceRes.ok) throw new Error('Failed to fetch performance data')
+      const performance = await performanceRes.json()
+
+      const customersRes = await fetch('/api/analytics/customers')
+      if (!customersRes.ok) throw new Error('Failed to fetch customer analytics')
+      const customers = await customersRes.json()
+
+      const riskRes = await fetch('/api/analytics/risk')
+      if (!riskRes.ok) throw new Error('Failed to fetch risk analysis')
+      const risk = await riskRes.json()
+
+      setAnalyticsData({
+        overview,
+        performance,
+        customers,
+        risk
+      })
+    } catch (err) {
+      setError(err.message)
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
+  }
+
+  useEffect(() => {
+    fetchAnalyticsData()
+  }, [])
+
+  const refreshData = () => {
+    fetchAnalyticsData()
   }
 
   const MetricCard = ({ title, value, change, icon: Icon, color, subtitle, format = 'number' }) => {
@@ -145,58 +111,63 @@ const AnalyticsDashboard = () => {
     )
   }
 
-  const OverviewMetrics = () => (
-    <div className="metrics-grid">
-      <MetricCard
-        title="Total Portfolio"
-        value={analyticsData.overview.totalPortfolio}
-        change={analyticsData.overview.portfolioGrowth}
-        icon={DollarSign}
-        color="#1E40AF"
-        format="currency"
-      />
-      <MetricCard
-        title="Active Loans"
-        value={analyticsData.overview.activeLoans}
-        icon={BarChart3}
-        color="#059669"
-        subtitle="Currently disbursed"
-      />
-      <MetricCard
-        title="Total Customers"
-        value={analyticsData.overview.totalCustomers}
-        icon={Users}
-        color="#7C3AED"
-        subtitle="Registered businesses"
-      />
-      <MetricCard
-        title="Collection Rate"
-        value={analyticsData.overview.collectionRate}
-        icon={Target}
-        color="#059669"
-        format="percentage"
-      />
-      <MetricCard
-        title="Default Rate"
-        value={analyticsData.overview.defaultRate}
-        icon={AlertTriangle}
-        color="#DC2626"
-        format="percentage"
-      />
-      <MetricCard
-        title="Avg Loan Size"
-        value={analyticsData.overview.averageLoanSize}
-        icon={TrendingUp}
-        color="#D97706"
-        format="currency"
-      />
-    </div>
-  )
+  const OverviewMetrics = () => {
+    if (!analyticsData) return null
+    const { overview } = analyticsData
+    return (
+      <div className="metrics-grid">
+        <MetricCard
+          title="Total Portfolio"
+          value={overview.totalDisbursed}
+          change={null}
+          icon={DollarSign}
+          color="#1E40AF"
+          format="currency"
+        />
+        <MetricCard
+          title="Active Loans"
+          value={overview.activeLoans}
+          icon={BarChart3}
+          color="#059669"
+          subtitle="Currently disbursed"
+        />
+        <MetricCard
+          title="Total Customers"
+          value={overview.newCustomersThisMonth}
+          icon={Users}
+          color="#7C3AED"
+          subtitle="New customers this month"
+        />
+        <MetricCard
+          title="Collection Rate"
+          value={overview.collectionRate || 0}
+          icon={Target}
+          color="#059669"
+          format="percentage"
+        />
+        <MetricCard
+          title="Default Rate"
+          value={overview.defaultRate}
+          icon={AlertTriangle}
+          color="#DC2626"
+          format="percentage"
+        />
+        <MetricCard
+          title="Avg Loan Size"
+          value={overview.averageLoanSize || 0}
+          icon={TrendingUp}
+          color="#D97706"
+          format="currency"
+        />
+      </div>
+    )
+  }
 
   const QuickInsights = () => (
     <div className="insights-section">
       <h3>Quick Insights</h3>
       <div className="insights-grid">
+        {/* Placeholder for dynamic insights */}
         <div className="insight-card positive">
           <div className="insight-icon">📈</div>
           <div className="insight-content">
@@ -204,7 +175,6 @@ const AnalyticsDashboard = () => {
             <p>Your loan portfolio grew by <strong>15.2%</strong> this month, exceeding the target of 12%</p>
           </div>
         </div>
-        
         <div className="insight-card warning">
           <div className="insight-icon">⚠️</div>
           <div className="insight-content">
@@ -212,7 +182,6 @@ const AnalyticsDashboard = () => {
             <p><strong>23 loans</strong> are due for collection today. Priority focus on overdue accounts.</p>
           </div>
         </div>
-        
         <div className="insight-card info">
           <div className="insight-icon">👥</div>
           <div className="insight-content">
@@ -220,7 +189,6 @@ const AnalyticsDashboard = () => {
             <p>Mama Mboga customers show <strong>97% repayment rate</strong> - highest performing segment</p>
           </div>
         </div>
-        
         <div className="insight-card success">
           <div className="insight-icon">🎯</div>
           <div className="insight-content">
@@ -232,149 +200,156 @@ const AnalyticsDashboard = () => {
     </div>
   )
 
-  const ChartSection = () => (
-    <div className="charts-section">
-      <div className="charts-grid">
-        <div className="chart-container large">
-          <div className="chart-header">
-            <h3>Portfolio Performance Trend</h3>
-            <div className="chart-actions">
-              <select 
-                className="chart-select"
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-              >
-                {periodOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+  const ChartSection = () => {
+    if (!analyticsData) return null
+    const { performance, customers, risk } = analyticsData
+    return (
+      <div className="charts-section">
+        <div className="charts-grid">
+          <div className="chart-container large">
+            <div className="chart-header">
+              <h3>Portfolio Performance Trend</h3>
+              <div className="chart-actions">
+                <select 
+                  className="chart-select"
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                >
+                  {periodOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <PortfolioChart data={performance.disbursed} />
+          </div>
+
+          <div className="chart-container">
+            <div className="chart-header">
+              <h3>Collection Performance</h3>
+            </div>
+            <CollectionChart data={performance.collections} />
+          </div>
+
+          <div className="chart-container">
+            <div className="chart-header">
+              <h3>Loan Distribution</h3>
+            </div>
+            <div className="loan-distribution">
+              {customers.segments.map((type, index) => (
+                <div key={index} className="distribution-item">
+                  <div className="distribution-header">
+                    <span>{type.segment}</span>
+                    <span>{type.percentage}%</span>
+                  </div>
+                  <div className="distribution-bar">
+                    <div 
+                      className="distribution-fill"
+                      style={{ 
+                        width: `${type.percentage}%`,
+                        backgroundColor: ['#1E40AF', '#059669', '#D97706', '#DC2626'][index] 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="distribution-amount">
+                    KSH {(type.avgLoan / 1000).toFixed(1)}K
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <PortfolioChart data={analyticsData.performance.disbursed} />
-        </div>
 
-        <div className="chart-container">
-          <div className="chart-header">
-            <h3>Collection Performance</h3>
+          <div className="chart-container">
+            <div className="chart-header">
+              <h3>Risk Analysis</h3>
+            </div>
+            <RiskAnalysis data={risk} detailed={true} />
           </div>
-          <CollectionChart data={analyticsData.performance.collections} />
-        </div>
 
-        <div className="chart-container">
-          <div className="chart-header">
-            <h3>Loan Distribution</h3>
+          <div className="chart-container large">
+            <div className="chart-header">
+              <h3>Customer Segmentation</h3>
+            </div>
+            <CustomerSegmentation data={customers} />
           </div>
-          <div className="loan-distribution">
-            {analyticsData.performance.loanTypes.map((type, index) => (
-              <div key={index} className="distribution-item">
-                <div className="distribution-header">
-                  <span>{type.type}</span>
-                  <span>{type.value}%</span>
-                </div>
-                <div className="distribution-bar">
-                  <div 
-                    className="distribution-fill"
-                    style={{ 
-                      width: `${type.value}%`,
-                      backgroundColor: ['#1E40AF', '#059669', '#D97706', '#DC2626'][index] 
-                    }}
-                  ></div>
-                </div>
-                <div className="distribution-amount">
-                  KSH {(type.amount / 1000000).toFixed(1)}M
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="chart-container">
-          <div className="chart-header">
-            <h3>Risk Analysis</h3>
-          </div>
-          <RiskAnalysis data={analyticsData.risk} />
-        </div>
-
-        <div className="chart-container large">
-          <div className="chart-header">
-            <h3>Customer Segmentation</h3>
-          </div>
-          <CustomerSegmentation data={analyticsData.customers} />
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
-  const PerformanceTable = () => (
-    <div className="performance-table-section">
-      <div className="table-header">
-        <h3>Detailed Performance Metrics</h3>
-        <button className="btn btn-secondary btn-sm">
-          <Download size={14} />
-          Export
-        </button>
+  const PerformanceTable = () => {
+    if (!analyticsData) return null
+    return (
+      <div className="performance-table-section">
+        <div className="table-header">
+          <h3>Detailed Performance Metrics</h3>
+          <button className="btn btn-secondary btn-sm">
+            <Download size={14} />
+            Export
+          </button>
+        </div>
+        
+        <div className="performance-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Current</th>
+                <th>Target</th>
+                <th>Previous</th>
+                <th>Change</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Portfolio Value</td>
+                <td>KSH 15.42M</td>
+                <td>KSH 15.00M</td>
+                <td>KSH 13.38M</td>
+                <td className="positive">+15.2%</td>
+                <td><span className="status-badge success">Achieved</span></td>
+              </tr>
+              <tr>
+                <td>Collection Rate</td>
+                <td>94.2%</td>
+                <td>95.0%</td>
+                <td>92.1%</td>
+                <td className="positive">+2.1%</td>
+                <td><span className="status-badge warning">Near Target</span></td>
+              </tr>
+              <tr>
+                <td>Default Rate</td>
+                <td>2.8%</td>
+                <td>3.0%</td>
+                <td>3.3%</td>
+                <td className="positive">-0.5%</td>
+                <td><span className="status-badge success">On Track</span></td>
+              </tr>
+              <tr>
+                <td>Customer Acquisition</td>
+                <td>47</td>
+                <td>50</td>
+                <td>38</td>
+                <td className="positive">+23.7%</td>
+                <td><span className="status-badge warning">Behind</span></td>
+              </tr>
+              <tr>
+                <td>Average Loan Size</td>
+                <td>KSH 47,500</td>
+                <td>KSH 45,000</td>
+                <td>KSH 43,750</td>
+                <td className="positive">+8.6%</td>
+                <td><span className="status-badge success">Exceeded</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      
-      <div className="performance-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Current</th>
-              <th>Target</th>
-              <th>Previous</th>
-              <th>Change</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Portfolio Value</td>
-              <td>KSH 15.42M</td>
-              <td>KSH 15.00M</td>
-              <td>KSH 13.38M</td>
-              <td className="positive">+15.2%</td>
-              <td><span className="status-badge success">Achieved</span></td>
-            </tr>
-            <tr>
-              <td>Collection Rate</td>
-              <td>94.2%</td>
-              <td>95.0%</td>
-              <td>92.1%</td>
-              <td className="positive">+2.1%</td>
-              <td><span className="status-badge warning">Near Target</span></td>
-            </tr>
-            <tr>
-              <td>Default Rate</td>
-              <td>2.8%</td>
-              <td>3.0%</td>
-              <td>3.3%</td>
-              <td className="positive">-0.5%</td>
-              <td><span className="status-badge success">On Track</span></td>
-            </tr>
-            <tr>
-              <td>Customer Acquisition</td>
-              <td>47</td>
-              <td>50</td>
-              <td>38</td>
-              <td className="positive">+23.7%</td>
-              <td><span className="status-badge warning">Behind</span></td>
-            </tr>
-            <tr>
-              <td>Average Loan Size</td>
-              <td>KSH 47,500</td>
-              <td>KSH 45,000</td>
-              <td>KSH 43,750</td>
-              <td className="positive">+8.6%</td>
-              <td><span className="status-badge success">Exceeded</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="analytics-dashboard">

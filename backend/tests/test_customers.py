@@ -123,3 +123,7 @@ def test_invalid_field_filter(client, headers_admin):
     assert res.status_code == 400
     assert res.get_json()["msg"] == "Invalid filter: 'unknown_field' is not a valid filter field"
 
+def test_get_overview(client, auth_headers):
+    res = client.get("/api/analytics/overview", headers=auth_headers)
+    assert res.status_code == 200
+    assert "totalPortfolio" in res.get_json()

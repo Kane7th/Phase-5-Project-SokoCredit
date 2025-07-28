@@ -29,7 +29,7 @@ const DashboardRouter = () => {
       console.log('Rendering AdminDashboard')
       return <AdminDashboard />
     case 'loan_officer':
-    case 'mamaMboga':
+    case 'mama_mboga':
       console.log('Rendering LenderDashboard')
       return <LenderDashboard />
     case 'customer':

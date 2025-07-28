@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { 
   DollarSign, 
@@ -15,81 +15,57 @@ import {
   TrendingUp,
   Calendar
 } from 'lucide-react'
+import { customerService } from '../../services/customerService'
+
+import React, { useState, useEffect } from 'react'
+import { useSelector } from 'react-redux'
 
 const CustomerDashboard = () => {
   const { user } = useSelector((state) => state.auth)
   const [activeTab, setActiveTab] = useState('overview')
 
-  // Mock data - replace with API calls
-  const customerData = {
-    creditScore: 720,
-    totalBorrowed: 150000,
-    totalRepaid: 125000,
-    activeLoans: 1,
-    completedLoans: 2,
-    paymentHistory: 95
-  }
+  const [customerData, setCustomerData] = useState(null)
+  const [currentLoan, setCurrentLoan] = useState(null)
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [notifications, setNotifications] = useState([])
 
-  const currentLoan = {
-    id: 'LN202401234',
-    amount: 50000,
-    balance: 11000,
-    nextPayment: {
-      date: '2024-01-25',
-      amount: 2500
-    },
-    progress: 78,
-    status: 'active',
-    startDate: '2023-10-15',
-    endDate: '2024-04-15',
-    interestRate: 12,
-    repaymentFrequency: 'weekly'
-  }
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedUser, setEditedUser] = useState(user)
 
-  const paymentHistory = [
-    {
-      id: 1,
-      date: '2024-01-18',
-      amount: 2500,
-      method: 'M-Pesa',
-      status: 'completed',
-      receipt: 'RCP001234'
-    },
-    {
-      id: 2,
-      date: '2024-01-11',
-      amount: 2500,
-      method: 'M-Pesa',
-      status: 'completed',
-      receipt: 'RCP001233'
-    },
-    {
-      id: 3,
-      date: '2024-01-04',
-      amount: 2500,
-      method: 'Cash',
-      status: 'completed',
-      receipt: 'RCP001232'
+  useEffect(() => {
+    const handleTabChange = (e) => {
+      setActiveTab(e.detail)
     }
-  ]
-
-  const notifications = [
-    {
-      id: 1,
-      type: 'payment_reminder',
-      message: 'Payment of KSH 2,500 is due tomorrow',
-      date: '2024-01-24',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'loan_approved',
-      message: 'Your loan application has been approved!',
-      date: '2024-01-20',
-      read: true
+    window.addEventListener('customerTabChange', handleTabChange)
+    return () => {
+      window.removeEventListener('customerTabChange', handleTabChange)
     }
-  ]
+  }, [])
 
+  useEffect(() => {
+    if (user?.id) {
+      fetchDashboardData()
+      fetchNotifications()
+    }
+  }, [user])
+
+  const fetchDashboardData = async () => {
+    try {
+      const response = await customerService.getCustomerDashboardData()
+      const data = response
+      setCustomerData(data.customer)
+      const activeLoan = data.loans.find(loan => loan.status === 'active')
+      setCurrentLoan(activeLoan || null)
+      setPaymentHistory(data.payments)
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error)
+    }
+  }
+  
+  const fetchNotifications = async () => {
+    // Placeholder: Implement notification fetch if API available
+    setNotifications([]) // Empty for now
+  }
 
   const handlePayNow = () => {
     // Implement payment logic
@@ -116,6 +92,10 @@ const CustomerDashboard = () => {
       </div>
     </div>
   )
+
+  if (!customerData) {
+    return <div>Loading customer data...</div>
+  }
 
   return (
     <div className="customer-dashboard">
@@ -163,7 +143,7 @@ const CustomerDashboard = () => {
           <div className="stats-grid">
             <StatCard
               title="Credit Score"
-              value={customerData.creditScore}
+              value={customerData.creditProfile?.score || 'N/A'}
               icon={TrendingUp}
               color="green"
               subtitle="Excellent rating"
@@ -177,10 +157,10 @@ const CustomerDashboard = () => {
             />
             <StatCard
               title="Next Payment"
-              value={currentLoan ? `KSH ${(currentLoan.nextPayment.amount / 1000).toFixed(1)}K` : 'N/A'}
+              value={currentLoan ? `KSH ${(currentLoan.nextPaymentAmount / 1000).toFixed(1)}K` : 'N/A'}
               icon={Calendar}
               color="orange"
-              subtitle={currentLoan ? `Due ${currentLoan.nextPayment.date}` : ''}
+              subtitle={currentLoan ? `Due ${new Date(currentLoan.nextPaymentDate).toLocaleDateString()}` : ''}
               action={currentLoan && (
                 <button className="btn btn-sm btn-primary" onClick={handlePayNow}>
                   Pay Now
@@ -189,7 +169,7 @@ const CustomerDashboard = () => {
             />
             <StatCard
               title="Payment History"
-              value={`${customerData.paymentHistory}%`}
+              value={`${customerData.paymentHistory || 0}%`}
               icon={CheckCircle}
               color="green"
               subtitle="On-time payments"
@@ -226,11 +206,11 @@ const CustomerDashboard = () => {
                         </div>
                         <div className="info-item">
                           <label>Repayment</label>
-                          <value>KSH {currentLoan.nextPayment.amount.toLocaleString()} {currentLoan.repaymentFrequency}</value>
+                          <value>KSH {currentLoan.nextPaymentAmount.toLocaleString()} {currentLoan.repaymentFrequency}</value>
                         </div>
                         <div className="info-item">
                           <label>Loan Period</label>
-                          <value>{currentLoan.startDate} to {currentLoan.endDate}</value>
+                          <value>{new Date(currentLoan.startDate).toLocaleDateString()} to {new Date(currentLoan.endDate).toLocaleDateString()}</value>
                         </div>
                       </div>
                     </div>
@@ -238,17 +218,17 @@ const CustomerDashboard = () => {
                     <div className="loan-progress">
                       <div className="progress-header">
                         <span>Loan Progress</span>
-                        <span>{currentLoan.progress}% Complete</span>
+                        <span>{Math.round((currentLoan.paymentsMade / currentLoan.paymentsTotal) * 100)}% Complete</span>
                       </div>
                       <div className="progress-bar">
                         <div 
                           className="progress-fill"
-                          style={{ width: `${currentLoan.progress}%` }}
+                          style={{ width: `${(currentLoan.paymentsMade / currentLoan.paymentsTotal) * 100}%` }}
                         ></div>
                       </div>
                       <div className="progress-labels">
-                        <span>Start: {currentLoan.startDate}</span>
-                        <span>End: {currentLoan.endDate}</span>
+                        <span>Start: {new Date(currentLoan.startDate).toLocaleDateString()}</span>
+                        <span>End: {new Date(currentLoan.endDate).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -258,13 +238,13 @@ const CustomerDashboard = () => {
                     <div className="payment-card">
                       <div className="payment-header">
                         <h4>Next Payment Due</h4>
-                        <span className="due-date">{currentLoan.nextPayment.date}</span>
+                        <span className="due-date">{new Date(currentLoan.nextPaymentDate).toLocaleDateString()}</span>
                       </div>
                       <div className="payment-amount">
-                        KSH {currentLoan.nextPayment.amount.toLocaleString()}
+                        KSH {currentLoan.nextPaymentAmount.toLocaleString()}
                       </div>
                       <div className="payment-methods">
-                        <button className="btn btn-primary payment-btn">
+                        <button className="btn btn-primary payment-btn" onClick={handlePayNow}>
                           <Smartphone size={16} />
                           Pay via M-Pesa
                         </button>
@@ -427,8 +407,7 @@ const CustomerDashboard = () => {
                 {paymentHistory.map(payment => (
                   <div key={payment.id} className="payment-item">
                     <div className="payment-date">
-                      {payment.date}
-                    </div>
+                      {new Date(payment.date).toLocaleDateString()}</div>
                     <div className="payment-details">
                       <div className="payment-amount">
                         KSH {payment.amount.toLocaleString()}
@@ -462,7 +441,20 @@ const CustomerDashboard = () => {
           <div className="card">
             <div className="card-header">
               <h3 className="heading-3">My Business Profile</h3>
-              <button className="btn btn-secondary">Edit Profile</button>
+              <button 
+                className="btn btn-secondary"
+                onClick={() => setIsEditing(!isEditing)}
+              >
+                {isEditing ? 'Cancel' : 'Edit Profile'}
+              </button>
+              {isEditing && (
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleSave}
+                >
+                  Save Changes
+                </button>
+              )}
             </div>
             <div className="card-body">
               <div className="profile-grid">
@@ -471,19 +463,55 @@ const CustomerDashboard = () => {
                   <div className="profile-fields">
                     <div className="field-item">
                       <label>Full Name</label>
-                      <value>{user?.full_name}</value>
+                      {isEditing ? (
+                        <input 
+                          type="text" 
+                          value={editedUser.full_name} 
+                          onChange={(e) => setEditedUser({...editedUser, full_name: e.target.value})}
+                          className="form-input"
+                        />
+                      ) : (
+                        <value>{user?.full_name}</value>
+                      )}
                     </div>
                     <div className="field-item">
                       <label>Phone Number</label>
-                      <value>{user?.phone}</value>
+                      {isEditing ? (
+                        <input 
+                          type="text" 
+                          value={editedUser.phone} 
+                          onChange={(e) => setEditedUser({...editedUser, phone: e.target.value})}
+                          className="form-input"
+                        />
+                      ) : (
+                        <value>{user?.phone}</value>
+                      )}
                     </div>
                     <div className="field-item">
                       <label>National ID</label>
-                      <value>{user?.id_number}</value>
+                      {isEditing ? (
+                        <input 
+                          type="text" 
+                          value={editedUser.id_number} 
+                          onChange={(e) => setEditedUser({...editedUser, id_number: e.target.value})}
+                          className="form-input"
+                        />
+                      ) : (
+                        <value>{user?.id_number}</value>
+                      )}
                     </div>
                     <div className="field-item">
                       <label>Location</label>
-                      <value>{user?.location}</value>
+                      {isEditing ? (
+                        <input 
+                          type="text" 
+                          value={editedUser.location} 
+                          onChange={(e) => setEditedUser({...editedUser, location: e.target.value})}
+                          className="form-input"
+                        />
+                      ) : (
+                        <value>{user?.location}</value>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -493,19 +521,46 @@ const CustomerDashboard = () => {
                   <div className="profile-fields">
                     <div className="field-item">
                       <label>Business Name</label>
-                      <value>{user?.business_name}</value>
+                      {isEditing ? (
+                        <input 
+                          type="text" 
+                          value={editedUser.business_name} 
+                          onChange={(e) => setEditedUser({...editedUser, business_name: e.target.value})}
+                          className="form-input"
+                        />
+                      ) : (
+                        <value>{user?.business_name}</value>
+                      )}
                     </div>
                     <div className="field-item">
                       <label>Business Type</label>
-                      <value>{user?.business_type?.replace('_', ' ')}</value>
+                      {isEditing ? (
+                        <input 
+                          type="text" 
+                          value={editedUser.business_type} 
+                          onChange={(e) => setEditedUser({...editedUser, business_type: e.target.value})}
+                          className="form-input"
+                        />
+                      ) : (
+                        <value>{user?.business_type?.replace('_', ' ')}</value>
+                      )}
                     </div>
                     <div className="field-item">
                       <label>Average Income</label>
-                      <value>KSH {user?.average_income?.toLocaleString()}</value>
+                      {isEditing ? (
+                        <input 
+                          type="number" 
+                          value={editedUser.average_income} 
+                          onChange={(e) => setEditedUser({...editedUser, average_income: e.target.value})}
+                          className="form-input"
+                        />
+                      ) : (
+                        <value>KSH {user?.average_income?.toLocaleString()}</value>
+                      )}
                     </div>
                     <div className="field-item">
                       <label>Credit Score</label>
-                      <value>{customerData.creditScore}/850</value>
+                      <value>{customerData.creditProfile?.score || 'N/A'}/850</value>
                     </div>
                   </div>
                 </div>

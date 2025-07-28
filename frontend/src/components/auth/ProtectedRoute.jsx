@@ -7,16 +7,32 @@ import LoadingSpinner from '../common/LoadingSpinner'
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const dispatch = useDispatch()
   const location = useLocation()
-  const { isAuthenticated, user, isLoading, token } = useSelector((state) => state.auth)
 
+  const {
+    isAuthenticated,
+    token,
+    user,
+    role,
+    isLoading,
+  } = useSelector((state) => state.auth)
+
+  // Try to fetch user if we have token but no user loaded
   useEffect(() => {
     if (token && !user && !isLoading) {
       dispatch(getCurrentUser())
     }
-  }, [dispatch, token, user, isLoading])
+  }, [token, user, isLoading, dispatch])
 
-  // Still fetching user info
-  if (isLoading || (token && !user)) {
+  let currentRole = role || user?.role
+
+  // Normalize currentRole to lowercase with underscores
+  currentRole = currentRole ? currentRole.toLowerCase().replace(/\s+/g, '_') : ''
+
+  // Normalize allowedRoles to lowercase with underscores
+  const normalizedAllowedRoles = allowedRoles.map(r => r.toLowerCase().replace(/\s+/g, '_'))
+
+  // While loading or waiting for user
+  if ((token && !user) || isLoading) {
     return (
       <div style={{
         height: '100vh',
@@ -35,17 +51,17 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     )
   }
 
-  // Not authenticated → redirect to login
+  // Not logged in
   if (!isAuthenticated || !token) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  // Role not authorized → redirect home or show message
-  if (allowedRoles.length > 0 && (!user || !allowedRoles.includes(user.role))) {
+  // User is logged in but role not allowed
+  if (normalizedAllowedRoles.length > 0 && !normalizedAllowedRoles.includes(currentRole)) {
     return <Navigate to="/" replace />
   }
 
-  // All checks passed
+  // Authenticated and authorized
   return children
 }
 

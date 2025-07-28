@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   X, 
   Edit, 
@@ -31,16 +31,72 @@ import {
   Shield
 } from 'lucide-react'
 
-const CustomerProfile = ({ customer, onClose, onUpdate }) => {
+import { customerService } from '../../services/customerService'
+
+const CustomerProfile = ({ customer, onClose, onUpdate, onDelete }) => {
   const [activeTab, setActiveTab] = useState('overview')
   const [isEditing, setIsEditing] = useState(false)
   const [editedCustomer, setEditedCustomer] = useState(customer)
   const [newNote, setNewNote] = useState('')
   const [newCommunication, setNewCommunication] = useState({ type: 'call', content: '' })
 
-  const handleSave = () => {
-    onUpdate(editedCustomer)
-    setIsEditing(false)
+  const [loans, setLoans] = useState([])
+  const [payments, setPayments] = useState([])
+  const [communications, setCommunications] = useState([])
+  const [documents, setDocuments] = useState({})
+
+  useEffect(() => {
+    setEditedCustomer(customer)
+    fetchLoans()
+    fetchPayments()
+    fetchCommunications()
+    fetchDocuments()
+  }, [customer])
+
+  const fetchLoans = async () => {
+    try {
+      const response = await customerService.getCustomerLoans(customer.id)
+      setLoans(response.data)
+    } catch (error) {
+      console.error('Failed to fetch loans:', error)
+    }
+  }
+
+  const fetchPayments = async () => {
+    try {
+      const response = await customerService.getCustomerPayments(customer.id)
+      setPayments(response.data)
+    } catch (error) {
+      console.error('Failed to fetch payments:', error)
+    }
+  }
+
+  const fetchCommunications = async () => {
+    try {
+      const response = await customerService.getCustomerCommunications(customer.id)
+      setCommunications(response.data)
+    } catch (error) {
+      console.error('Failed to fetch communications:', error)
+    }
+  }
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await customerService.getCustomerDocuments(customer.id)
+      setDocuments(response.data)
+    } catch (error) {
+      console.error('Failed to fetch documents:', error)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      const response = await customerService.updateCustomer(editedCustomer.id, editedCustomer)
+      onUpdate(response.data)
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Failed to update customer:', error)
+    }
   }
 
   const handleAddNote = () => {
@@ -54,23 +110,15 @@ const CustomerProfile = ({ customer, onClose, onUpdate }) => {
     }
   }
 
-  const handleAddCommunication = () => {
+  const handleAddCommunication = async () => {
     if (newCommunication.content.trim()) {
-      const communication = {
-        id: Date.now(),
-        type: newCommunication.type,
-        date: new Date().toISOString(),
-        method: newCommunication.type === 'call' ? 'call' : 'sms',
-        content: newCommunication.content,
-        status: 'completed'
+      try {
+        await customerService.addCustomerCommunication(customer.id, newCommunication)
+        fetchCommunications()
+        setNewCommunication({ type: 'call', content: '' })
+      } catch (error) {
+        console.error('Failed to add communication:', error)
       }
-      
-      const updatedCustomer = {
-        ...editedCustomer,
-        communications: [communication, ...editedCustomer.communications]
-      }
-      setEditedCustomer(updatedCustomer)
-      setNewCommunication({ type: 'call', content: '' })
     }
   }
 
@@ -390,45 +438,6 @@ const CustomerProfile = ({ customer, onClose, onUpdate }) => {
   )
 
   const LoansTab = () => {
-    // Mock loan data for this customer
-    const loans = [
-      {
-        id: 'LN202401234',
-        amount: 75000,
-        disbursedAmount: 75000,
-        balance: 25000,
-        status: 'active',
-        startDate: '2023-12-01',
-        endDate: '2024-06-01',
-        duration: 6,
-        interestRate: 12,
-        paymentFrequency: 'weekly',
-        purpose: 'Business expansion',
-        paymentsTotal: 26,
-        paymentsMade: 18,
-        paymentsRemaining: 8,
-        nextPaymentDate: '2024-01-28',
-        nextPaymentAmount: 3200
-      },
-      {
-        id: 'LN202308156',
-        amount: 50000,
-        disbursedAmount: 50000,
-        balance: 0,
-        status: 'completed',
-        startDate: '2023-08-15',
-        endDate: '2023-11-15',
-        duration: 3,
-        interestRate: 12,
-        paymentFrequency: 'weekly',
-        purpose: 'Inventory purchase',
-        paymentsTotal: 13,
-        paymentsMade: 13,
-        paymentsRemaining: 0,
-        completedDate: '2023-11-10'
-      }
-    ]
-
     return (
       <div className="profile-loans">
         <div className="loans-summary">
@@ -526,41 +535,8 @@ const CustomerProfile = ({ customer, onClose, onUpdate }) => {
     )
   }
 
-  const PaymentsTab = () => {
-    // Mock payment history
-    const payments = [
-      {
-        id: 1,
-        date: '2024-01-20',
-        amount: 3200,
-        method: 'M-Pesa',
-        status: 'completed',
-        loanId: 'LN202401234',
-        transactionId: 'TXN123456789',
-        daysLate: 0
-      },
-      {
-        id: 2,
-        date: '2024-01-13',
-        amount: 3200,
-        method: 'Cash',
-        status: 'completed',
-        loanId: 'LN202401234',
-        transactionId: null,
-        daysLate: 1
-      },
-      {
-        id: 3,
-        date: '2024-01-06',
-        amount: 3200,
-        method: 'M-Pesa',
-        status: 'completed',
-        loanId: 'LN202401234',
-        transactionId: 'TXN987654321',
-        daysLate: 0
-      }
-    ]
 
+  const PaymentsTab = () => {
     return (
       <div className="profile-payments">
         <div className="payments-summary">
@@ -631,6 +607,7 @@ const CustomerProfile = ({ customer, onClose, onUpdate }) => {
       </div>
     )
   }
+
 
   const CommunicationsTab = () => (
     <div className="profile-communications">
@@ -805,6 +782,19 @@ const CustomerProfile = ({ customer, onClose, onUpdate }) => {
                 Save Changes
               </button>
             )}
+            <button className="btn btn-danger" onClick={async () => {
+              if (window.confirm('Are you sure you want to delete this customer?')) {
+                try {
+                  await customerService.deleteCustomer(customer.id)
+                  onDelete(customer.id)
+                } catch (error) {
+                  console.error('Failed to delete customer:', error)
+                }
+              }
+            }}>
+              <Ban size={16} />
+              Delete
+            </button>
             <button className="close-btn" onClick={onClose}>
               <X size={20} />
             </button>

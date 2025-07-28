@@ -1,31 +1,55 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 
-// socket instance outside the component to avoid multiple connects
+// socket instance reference
 let socket
 
-const NotificationListener = ({ token, userId }) => {
-  useEffect(() => {
-    if (!token || !userId) return
+const NotificationListener = ({ userId }) => {
+  const reconnectRef = useRef(null)
 
-    // Connect to socket server and pass JWT in query params
+  useEffect(() => {
+    if (!userId) return
+
+    const token = localStorage.getItem('accessToken')
+    if (!token) return
+
+    // Connect to the socket server using auth object
     socket = io('http://localhost:5000/notifications', {
-      query: { token },
+      auth: {
+        token,
+      },
+      autoConnect: true,
+      reconnection: true,
     })
 
-    // Listen for notifications for this specific user
+    // Listen for notifications
     socket.on('notification', (data) => {
       console.log('📥 New Notification:', data)
-      // Handle the notification UI however you want (modal, banner, etc.)
+      // handle notification (toast, modal, etc.)
     })
 
-    // Clean up socket connection
-    return () => {
-      socket.disconnect()
-    }
-  }, [token, userId])
+    // Optional: Listen for auth errors (e.g. expired token)
+    socket.on('connect_error', (err) => {
+      if (err.message === 'Signature has expired') {
+        console.warn('⚠️ Socket token expired. Attempting reconnection...')
 
-  return null // It’s a headless listener, no UI needed
+        // Get a new token however your app handles refresh
+        const newToken = localStorage.getItem('accessToken')
+        if (newToken) {
+          socket.auth.token = newToken
+          socket.connect()
+        }
+      } else {
+        console.error('Socket connection error:', err.message)
+      }
+    })
+
+    return () => {
+      if (socket) socket.disconnect()
+    }
+  }, [userId])
+
+  return null // headless component
 }
 
 export default NotificationListener

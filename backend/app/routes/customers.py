@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models.customer import Customer
@@ -9,6 +9,8 @@ import io
 import openpyxl
 from openpyxl.utils import get_column_letter
 from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
 
 customers_bp = Blueprint('customers', __name__)
 
@@ -18,8 +20,8 @@ def extract_identity():
     return int(user_id_str.replace("user_", "")), role
 
 def is_authorized(customer, user_id, role):
-    if role == "mama_mboga":
-        return customer.mama_mboga_user_id == user_id
+    if role == "customer":
+        return customer.customer_user_id == user_id
     return role in ["admin", "lender"] or customer.created_by == user_id
 
 def format_customer(customer):
@@ -61,7 +63,7 @@ def generate_excel(customers):
 
 @customers_bp.route("/", methods=["POST"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def create_customer():
     data = request.get_json()
     user_id, role = extract_identity()
@@ -69,19 +71,17 @@ def create_customer():
     if not data.get("full_name") or not data.get("phone"):
         return jsonify({"msg": "Full name and phone are required"}), 400
 
-    # Ensure unique phone
     if Customer.query.filter_by(phone=data["phone"]).first():
         return jsonify({"msg": "Phone number already exists"}), 409
 
-    # Enforce that mama_mboga can only create their own profile once
-    if role == "mama_mboga":
-        if Customer.query.filter_by(mama_mboga_user_id=user_id).first():
+    if role == "customer":
+        if Customer.query.filter_by(customer_user_id=user_id).first():
             return jsonify({"msg": "You already have a profile"}), 409
-        mama_mboga_user_id = user_id
+        customer_user_id = user_id
     else:
-        mama_mboga_user_id = data.get("mama_mboga_user_id")
-        if not mama_mboga_user_id:
-            return jsonify({"msg": "mama_mboga_user_id is required for admin/lender"}), 400
+        customer_user_id = data.get("customer_user_id")
+        if not customer_user_id:
+            return jsonify({"msg": "customer_user_id is required for admin/lender"}), 400
 
     customer_kwargs = {
         "full_name": data["full_name"],
@@ -91,7 +91,7 @@ def create_customer():
         "location": data.get("location"),
         "documents": data.get("documents", {}),
         "created_by": user_id,
-        "mama_mboga_user_id": mama_mboga_user_id
+        "customer_user_id": customer_user_id
     }
 
     customer = Customer(**customer_kwargs)
@@ -107,7 +107,6 @@ def create_customer():
 @jwt_required()
 @role_required(["admin", "lender"])
 def list_customers():
-    # Validate allowed query params
     ALLOWED_FILTERS = {
         "page", "per_page", "search", "created_by",
         "business_name", "has_documents", "location", "format"
@@ -116,7 +115,6 @@ def list_customers():
         if key not in ALLOWED_FILTERS:
             return jsonify({"msg": f"Invalid filter: '{key}' is not a valid filter field"}), 400
 
-    # Extract query parameters
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
     search = request.args.get("search", "", type=str)
@@ -128,7 +126,6 @@ def list_customers():
 
     query = Customer.query
 
-    # Filtering
     if location and location.strip():
         query = query.filter(Customer.location == location)
 
@@ -153,7 +150,6 @@ def list_customers():
             Customer.location.ilike(search_term)
         ))
 
-    # CSV or Excel export
     if format_type == "csv":
         customers = query.all()
         csv_data = generate_csv(customers)
@@ -168,10 +164,8 @@ def list_customers():
             "Content-Disposition": "attachment; filename=customers.xlsx"
         })
     
-    # audit log for listing customers
     print(f"[AUDIT LOG] User {get_jwt_identity()} listed customers at {datetime.utcnow().isoformat()}.")
 
-    # Paginate + return JSON
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     return jsonify({
         "customers": [format_customer(c) for c in pagination.items],
@@ -182,7 +176,7 @@ def list_customers():
 
 @customers_bp.route("/<int:customer_id>", methods=["GET"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def get_customer(customer_id):
     user_id, role = extract_identity()
     customer = Customer.query.get_or_404(customer_id)
@@ -202,13 +196,12 @@ def get_my_customers():
     user_id = identity if isinstance(identity, int) else int(identity.split("_")[-1])
     customers = Customer.query.filter_by(lender_id=user_id).all()
 
-    # Audit log for listing own customers 
     print(f"[AUDIT LOG] User {user_id} listed their own customers at {datetime.utcnow().isoformat()}.")
     return jsonify([c.to_dict() for c in customers])
 
 @customers_bp.route("/<int:customer_id>", methods=["PATCH"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def patch_customer(customer_id):
     data = request.get_json()
     user_id, role = extract_identity()
@@ -225,13 +218,11 @@ def patch_customer(customer_id):
         if field in data:
             setattr(customer, field, data[field])
 
-    # Enforce phone uniqueness
     if "phone" in data:
         existing = Customer.query.filter(Customer.phone == data["phone"], Customer.id != customer.id).first()
         if existing:
             return jsonify({"msg": "Phone number already exists for another customer"}), 409
 
-    # Audit log for updating customer
     print(f"[AUDIT LOG] User {user_id} ({role}) updated customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     db.session.commit()
@@ -247,7 +238,6 @@ def delete_customer(customer_id):
     if not is_authorized(customer, user_id, role):
         return jsonify({"msg": "Not authorized to delete this customer"}), 403
 
-    # Audit log for deletion
     print(f"[AUDIT LOG] User {user_id} ({role}) deleted customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     db.session.delete(customer)
@@ -280,17 +270,11 @@ def openapi_schema():
     }
     return jsonify(schema)
 
-
-# Upload customer documents
-import os
-from werkzeug.utils import secure_filename
-from flask import current_app
-
 UPLOAD_FOLDER = "uploads/customers"
 
 @customers_bp.route("/<int:customer_id>/upload", methods=["POST"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def upload_customer_document(customer_id):
     user_id, role = extract_identity()
     customer = Customer.query.get_or_404(customer_id)
@@ -309,9 +293,7 @@ def upload_customer_document(customer_id):
     if not allowed_file(file.filename):
         return jsonify({"msg": "File type not allowed"}), 400
 
-
-    doc_type = request.form.get("doc_type", "unknown")  # e.g. "id_card", "business_permit"
-
+    doc_type = request.form.get("doc_type", "unknown")
     filename = secure_filename(file.filename)
     customer_dir = os.path.join(UPLOAD_FOLDER, str(customer_id))
     os.makedirs(customer_dir, exist_ok=True)
@@ -319,7 +301,6 @@ def upload_customer_document(customer_id):
     file_path = os.path.join(customer_dir, f"{doc_type}_{filename}")
     file.save(file_path)
 
-    # Update customer document reference
     customer.documents[doc_type] = file_path
     db.session.commit()
 
@@ -327,33 +308,6 @@ def upload_customer_document(customer_id):
 
     return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
 
-# Check if file is allowed
 def allowed_file(filename):
     allowed_exts = current_app.config.get("ALLOWED_EXTENSIONS", {"pdf", "jpg", "jpeg", "png"})
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
-
-
-
-
-
-# Unit tests
-import unittest
-from flask import Flask
-from flask.testing import FlaskClient
-
-class CustomersTestCase(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app("testing")
-        self.client: FlaskClient = self.app.test_client()
-        self.access_token = "FAKE_JWT_TOKEN"
-
-    def test_list_customers_filters(self):
-        response = self.client.get("/customers/?search=test&location=Nairobi", headers={"Authorization": f"Bearer {self.access_token}"})
-        self.assertIn(response.status_code, [200, 401])
-
-    def test_my_customers_with_documents(self):
-        response = self.client.get("/customers/my_customers?has_documents=true", headers={"Authorization": f"Bearer {self.access_token}"})
-        self.assertIn(response.status_code, [200, 401])
-
-if __name__ == "__main__":
-    unittest.main()

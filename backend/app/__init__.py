@@ -31,6 +31,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.mpesa.views import mpesa_bp
     from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
+    from app.routes.analytics import analytics_bp
     from app.models.notification import Notification
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -43,6 +44,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(callback_bp)
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
+    app.register_blueprint(analytics_bp)
 
     # Import NotificationNamespace after socketio is ready
     from app.sockets.notifications_socket import NotificationNamespace

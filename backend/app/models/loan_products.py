@@ -4,16 +4,18 @@ from datetime import datetime
 from sqlalchemy import Enum
 from enum import Enum as pyEnum
 
+
 class RepaymentFrequencies(pyEnum):
     daily = 'daily'
     weekly = 'weekly'
     monthly = 'monthly'
 
+
 class LoanProduct(db.Model, SerializerMixin):
     __tablename__ = 'loan_products'
-    
+
     serialize_rules = ('-loans',)
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
@@ -23,7 +25,16 @@ class LoanProduct(db.Model, SerializerMixin):
     frequency = db.Column(Enum(RepaymentFrequencies), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    loans = db.relationship('Loan', back_populates='loan_product', cascade='all, delete-orphan')
+    loans = db.relationship(
+        'Loan',
+        back_populates='loan_product',
+        cascade='all, delete-orphan'
+    )
 
     def __repr__(self):
-        return f"<LoanProduct id={self.id} name={self.name} interest={self.interest_rate}% duration={self.duration_months}mnths>"
+        return (
+            f"<LoanProduct id={self.id}, "
+            f"name='{self.name}', "
+            f"interest_rate={self.interest_rate}%, "
+            f"duration={self.duration_months} months>"
+        )
