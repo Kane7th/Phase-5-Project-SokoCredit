@@ -12,6 +12,7 @@ import {
   Download,
   Smartphone,
   Building,
+  TrendingUp,
   Calendar
 } from 'lucide-react'
 
@@ -20,16 +21,16 @@ const CustomerDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview')
 
   // Mock data - replace with API calls
-  const [customerData, setCustomerData] = useState({
+  const customerData = {
     creditScore: 720,
     totalBorrowed: 150000,
     totalRepaid: 125000,
     activeLoans: 1,
     completedLoans: 2,
     paymentHistory: 95
-  })
+  }
 
-  const [currentLoan, setCurrentLoan] = useState({
+  const currentLoan = {
     id: 'LN202401234',
     amount: 50000,
     balance: 11000,
@@ -43,9 +44,9 @@ const CustomerDashboard = () => {
     endDate: '2024-04-15',
     interestRate: 12,
     repaymentFrequency: 'weekly'
-  })
+  }
 
-  const [paymentHistory, setPaymentHistory] = useState([
+  const paymentHistory = [
     {
       id: 1,
       date: '2024-01-18',
@@ -70,9 +71,9 @@ const CustomerDashboard = () => {
       status: 'completed',
       receipt: 'RCP001232'
     }
-  ])
+  ]
 
-  const [notifications, setNotifications] = useState([
+  const notifications = [
     {
       id: 1,
       type: 'payment_reminder',
@@ -87,7 +88,8 @@ const CustomerDashboard = () => {
       date: '2024-01-20',
       read: true
     }
-  ])
+  ]
+
 
   const handlePayNow = () => {
     // Implement payment logic
@@ -103,7 +105,7 @@ const CustomerDashboard = () => {
     <div className="stat-card">
       <div className="stat-header">
         <div className={`stat-icon ${color}`}>
-          <Icon size={24} />
+          {Icon && <Icon size={24} />}
         </div>
       </div>
       <div className="stat-content">

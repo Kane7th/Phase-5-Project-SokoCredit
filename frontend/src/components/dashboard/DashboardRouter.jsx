@@ -1,12 +1,14 @@
 import React from 'react'
 import { useSelector } from 'react-redux'
+import LoadingSpinner from '../common/LoadingSpinner'
 import AdminDashboard from './AdminDashboard'
 import LenderDashboard from './LenderDashboard'
 import CustomerDashboard from './CustomerDashboard'
-import LoadingSpinner from '../common/LoadingSpinner'
 
 const DashboardRouter = () => {
   const { user, isLoading } = useSelector((state) => state.auth)
+
+  console.log('DashboardRouter render - user:', user)
 
   if (isLoading || !user) {
     return (
@@ -24,13 +26,17 @@ const DashboardRouter = () => {
   // Route to appropriate dashboard based on user role
   switch (user.role) {
     case 'admin':
+      console.log('Rendering AdminDashboard')
       return <AdminDashboard />
     case 'loan_officer':
-    case 'agent':
+    case 'mamaMboga':
+      console.log('Rendering LenderDashboard')
       return <LenderDashboard />
     case 'customer':
+      console.log('Rendering CustomerDashboard')
       return <CustomerDashboard />
     default:
+      console.log('Rendering Access Denied')
       return (
         <div className="error-container">
           <h2>Access Denied</h2>
