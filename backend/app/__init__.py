@@ -26,6 +26,10 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
+    from app.routes.repayment_routes import repayment_bp
+    from app.routes.mpesa.test_mpesa_route import test_bp
+    from app.routes.mpesa.views import mpesa_bp
+    from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.models.notification import Notification
 
@@ -33,6 +37,10 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(customers_bp, url_prefix='/customers')
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
+    app.register_blueprint(repayment_bp)
+    app.register_blueprint(test_bp)
+    app.register_blueprint(mpesa_bp)
+    app.register_blueprint(callback_bp)
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
 

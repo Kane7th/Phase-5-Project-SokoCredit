@@ -20,7 +20,7 @@ def index():
 #USER can apply for loan
 @loan_bp.route('', methods=['POST'])
 @jwt_required()
-@role_required('mama_mboga')
+@role_required('customer')
 def apply_loan():
     try:
         data = request.get_json()
@@ -71,7 +71,7 @@ def apply_loan():
 # Users can view all loans
 @loan_bp.route('', methods=['GET'])
 @jwt_required()
-@role_required(['admin', 'lender', 'mama_mboga'])
+@role_required(['admin', 'lender', 'customer'])
 def get_loans():
     try:
         user_id = int(get_jwt_identity().split(':')[0])
@@ -79,7 +79,7 @@ def get_loans():
         
         if user.role in ['admin', 'lender']:
             loans = Loan.query.all()
-        elif user.role =='mama_mboga':
+        elif user.role =='customer':
             loans = Loan.query.filter_by(borrower_id=user.id).all()
         
         return jsonify([loan.to_dict() for loan in loans]), 200
