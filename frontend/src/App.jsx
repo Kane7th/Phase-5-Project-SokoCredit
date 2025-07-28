@@ -12,6 +12,7 @@ import ProfilePage from './components/customer/ProfilePage'
 import Settings from './components/common/Settings'
 import ChangePassword from './components/auth/ChangePassword'
 import ForgotPassword from './components/auth/ForgotPassword'
+import LoanApplicationForm from './components/loans/LoanApplicationForm'
 
 function App() {
   const { isAuthenticated, user_id, role, token } = useSelector((state) => state.auth)
@@ -39,6 +40,15 @@ function App() {
         >
           <Route path="*" element={<DashboardRouter />} />
         </Route>
+
+        <Route
+          path="/loan-application"
+          element={
+            <ProtectedRoute allowedRoles={['customer']}>
+              <LoanApplicationForm />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/profile"
