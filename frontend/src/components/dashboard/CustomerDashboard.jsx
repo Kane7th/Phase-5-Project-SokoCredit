@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 import { 
   DollarSign, 
   CreditCard, 
@@ -17,12 +18,10 @@ import {
 } from 'lucide-react'
 import { customerService } from '../../services/customerService'
 
-import React, { useState, useEffect } from 'react'
-import { useSelector } from 'react-redux'
-
 const CustomerDashboard = () => {
   const { user } = useSelector((state) => state.auth)
   const [activeTab, setActiveTab] = useState('overview')
+  const navigate = useNavigate()
 
   const [customerData, setCustomerData] = useState(null)
   const [currentLoan, setCurrentLoan] = useState(null)
@@ -73,8 +72,8 @@ const CustomerDashboard = () => {
   }
 
   const handleApplyLoan = () => {
-    // Navigate to loan application
-    console.log('Starting loan application...')
+    // Navigate to loan application form page
+    navigate('/loan-application')
   }
 
   const StatCard = ({ title, value, icon: Icon, color, subtitle, action }) => (
@@ -447,14 +446,17 @@ const CustomerDashboard = () => {
               >
                 {isEditing ? 'Cancel' : 'Edit Profile'}
               </button>
-              {isEditing && (
-                <button 
-                  className="btn btn-primary"
-                  onClick={handleSave}
-                >
-                  Save Changes
-                </button>
-              )}
+      {isEditing && (
+        <button 
+          className="btn btn-primary"
+          onClick={() => {
+            // Placeholder for save functionality
+            console.log('Save changes clicked');
+          }}
+        >
+          Save Changes
+        </button>
+      )}
             </div>
             <div className="card-body">
               <div className="profile-grid">

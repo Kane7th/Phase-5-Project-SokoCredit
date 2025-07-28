@@ -155,12 +155,12 @@ const CustomerProfile = ({ customer, onClose, onUpdate, onDelete }) => {
                 {isEditing ? (
                   <input
                     type="text"
-                    value={editedCustomer.name}
-                    onChange={(e) => setEditedCustomer(prev => ({ ...prev, name: e.target.value }))}
+                    value={editedCustomer.full_name}
+                    onChange={(e) => setEditedCustomer(prev => ({ ...prev, full_name: e.target.value }))}
                     className="edit-input"
                   />
                 ) : (
-                  <value>{customer.name}</value>
+                  <value>{customer.full_name}</value>
                 )}
               </div>
             </div>

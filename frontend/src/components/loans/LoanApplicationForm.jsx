@@ -1,11 +1,10 @@
-import React, { useState } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import React, { useState, useEffect } from 'react'
+import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { 
   DollarSign, 
   Calendar, 
-  Percent, 
   FileText, 
   User, 
   Building,
@@ -14,6 +13,8 @@ import {
   ArrowRight,
   Check
 } from 'lucide-react'
+import api from '../../services/api'
+import '../../styles/loan-application.css'
 
 const LoanApplicationForm = () => {
   const [currentStep, setCurrentStep] = useState(1)
@@ -29,7 +30,6 @@ const LoanApplicationForm = () => {
     handleSubmit,
     formState: { errors },
     watch,
-    setValue,
     trigger
   } = useForm({
     defaultValues: {
@@ -56,9 +56,9 @@ const LoanApplicationForm = () => {
     { number: 3, title: 'Review & Submit', icon: Check }
   ]
 
-  const [customers, setCustomers] = React.useState([])
+  const [customers, setCustomers] = useState([])
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchCustomers = async () => {
       try {
         const response = await fetch('/api/customers')
@@ -71,9 +71,6 @@ const LoanApplicationForm = () => {
     fetchCustomers()
   }, [])
 
-  // Use fetched customers for lenders
-  const mockCustomers = customers
-
   const calculateLoanTerms = () => {
     const principal = parseFloat(watchedAmount) || 0
     const months = parseInt(watchedDuration) || 6
@@ -81,7 +78,6 @@ const LoanApplicationForm = () => {
     const annualRate = 0.12 // 12% annual interest rate
 
     if (principal > 0 && months > 0) {
-      const monthlyRate = annualRate / 12
       const totalInterest = principal * annualRate * (months / 12)
       const totalAmount = principal + totalInterest
       
@@ -90,11 +86,11 @@ const LoanApplicationForm = () => {
       
       switch (frequency) {
         case 'daily':
-          paymentCount = months * 30 // Approximate days per month
+          paymentCount = months * 30
           paymentInterval = 'daily'
           break
         case 'weekly':
-          paymentCount = months * 4.33 // Approximate weeks per month
+          paymentCount = months * 4.33
           paymentInterval = 'weekly'
           break
         case 'monthly':
@@ -120,7 +116,7 @@ const LoanApplicationForm = () => {
     }
   }
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (watchedAmount && watchedDuration) {
       calculateLoanTerms()
     }
@@ -154,14 +150,20 @@ const LoanApplicationForm = () => {
     }
   }
 
-  const onSubmit = (data) => {
-    console.log('Loan Application Data:', {
-      ...data,
-      calculation: loanCalculation,
-      applicant: isCustomer ? user : selectedCustomer
-    })
-    // Handle form submission
-    navigate('/dashboard')
+  const onSubmit = async (data) => {
+    try {
+      const payload = {
+        amount: parseFloat(data.amount),
+        interest_rate: 0.12,
+        duration_months: parseInt(data.duration_months)
+      }
+      await api.post('/loans', payload)
+      navigate('/dashboard')
+    } catch (error) {
+      console.error('Loan application failed:', error)
+      const message = error.response?.data?.error || 'Failed to submit loan application. Please try again.'
+      alert(message)
+    }
   }
 
   const renderStepIndicator = () => (
@@ -187,7 +189,6 @@ const LoanApplicationForm = () => {
     <div className="form-step">
       <h3 className="step-heading">Loan Application Details</h3>
       
-      {/* Customer Selection for Lenders */}
       {!isCustomer && (
         <div className="form-group">
           <label className="form-label">
@@ -200,12 +201,12 @@ const LoanApplicationForm = () => {
             className={`form-select ${errors.customer_id ? 'error' : ''}`}
             {...register('customer_id', { required: 'Please select a customer' })}
             onChange={(e) => {
-              const customer = mockCustomers.find(c => c.id === parseInt(e.target.value))
+              const customer = customers.find(c => c.id === parseInt(e.target.value))
               setSelectedCustomer(customer)
             }}
           >
             <option value="">Choose a customer</option>
-            {mockCustomers.map(customer => (
+            {customers.map(customer => (
               <option key={customer.id} value={customer.id}>
                 {customer.name} - {customer.business}
               </option>
@@ -319,7 +320,6 @@ const LoanApplicationForm = () => {
         )}
       </div>
 
-      {/* Loan Calculation Preview */}
       {loanCalculation && (
         <div className="calculation-preview">
           <h4>Loan Calculation Preview</h4>
@@ -540,7 +540,6 @@ const LoanApplicationForm = () => {
             </div>
           </div>
 
-          {/* Loan Calculation */}
           {loanCalculation && (
             <div className="review-section highlight">
               <h4>Loan Terms & Repayment</h4>
@@ -569,25 +568,6 @@ const LoanApplicationForm = () => {
             </div>
           )}
         </div>
-
-        <div className="terms-acceptance">
-          <label className="checkbox-wrapper">
-            <input
-              type="checkbox"
-              {...register('accept_terms', {
-                required: 'You must accept the terms and conditions'
-              })}
-            />
-            <span className="checkmark"></span>
-            <span className="checkbox-text">
-              I agree to the <a href="#" className="terms-link">Terms and Conditions</a> and 
-              confirm that all information provided is accurate and complete.
-            </span>
-          </label>
-          {errors.accept_terms && (
-            <div className="text-error">{errors.accept_terms.message}</div>
-          )}
-        </div>
       </div>
     )
   }
@@ -614,7 +594,6 @@ const LoanApplicationForm = () => {
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
 
-        {/* Navigation Buttons */}
         <div className="form-navigation">
           {currentStep > 1 && (
             <button
