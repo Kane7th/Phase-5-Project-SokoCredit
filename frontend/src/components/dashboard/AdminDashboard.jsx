@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { 
   Users, 
@@ -13,6 +13,8 @@ import {
   Clock,
   Building
 } from 'lucide-react'
+import { customerService } from '../../services/customerService'
+import AnalyticsDashboard from '../analytics/AnalyticsDashboard'
 import '../../styles/dashboard.css'
 
 const AdminDashboard = () => {
@@ -30,38 +32,46 @@ const AdminDashboard = () => {
     }
   }, [])
 
-  // Mock data - replace with API calls
   const [stats, setStats] = useState({
-    totalLenders: 47,
-    pendingLenders: 8,
-    activeLenders: 39,
-    totalCustomers: 1234,
-    totalLoans: 45200000, // KSH
-    systemHealth: 98.5
+    totalLenders: 0,
+    pendingLenders: 0,
+    activeLenders: 0,
+    totalCustomers: 0,
+    totalLoans: 0, // KSH
+    systemHealth: 0
   })
 
-  const [pendingLenders, setPendingLenders] = useState([
-    {
-      id: 1,
-      full_name: 'John Doe',
-      email: 'john@email.com',
-      phone: '+254712345678',
-      business_name: 'Nairobi Microfinance',
-      location: 'Nairobi',
-      created_at: '2024-01-15',
-      documents_complete: true
-    },
-    {
-      id: 2,
-      full_name: 'Jane Smith',
-      email: 'jane@email.com',
-      phone: '+254787654321',
-      business_name: 'Mombasa Financial Services',
-      location: 'Mombasa',
-      created_at: '2024-01-14',
-      documents_complete: false
+  const [pendingLenders, setPendingLenders] = useState([])
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await customerService.getCustomerStats()
+        setStats({
+          totalLenders: response.data.totalLenders || 0,
+          pendingLenders: response.data.pendingLenders || 0,
+          activeLenders: response.data.activeLenders || 0,
+          totalCustomers: response.data.totalCustomers || 0,
+          totalLoans: response.data.totalLoans || 0,
+          systemHealth: response.data.systemHealth || 0
+        })
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+      }
     }
-  ])
+
+    const fetchPendingLenders = async () => {
+      try {
+        const response = await customerService.listCustomers({ status: 'pending', role: 'lender' })
+        setPendingLenders(response.data.customers || [])
+      } catch (error) {
+        console.error('Failed to fetch pending lenders:', error)
+      }
+    }
+
+    fetchStats()
+    fetchPendingLenders()
+  }, [])
 
   const handleApproveLender = (lenderId) => {
     setPendingLenders(prev => prev.filter(l => l.id !== lenderId))
@@ -70,7 +80,7 @@ const AdminDashboard = () => {
       pendingLenders: prev.pendingLenders - 1,
       activeLenders: prev.activeLenders + 1
     }))
-    // API call to approve lender
+    // TODO: API call to approve lender
   }
 
   const handleRejectLender = (lenderId) => {
@@ -79,7 +89,7 @@ const AdminDashboard = () => {
       ...prev,
       pendingLenders: prev.pendingLenders - 1
     }))
-    // API call to reject lender
+    // TODO: API call to reject lender
   }
 
   const StatCard = ({ title, value, icon, color, change }) => (
@@ -252,14 +262,7 @@ const AdminDashboard = () => {
     {/* Analytics Tab */}
     {activeTab === 'analytics' && (
       <div className="dashboard-content">
-        <div className="card">
-          <div className="card-header">
-            <h3 className="heading-3">System Analytics</h3>
-          </div>
-          <div className="card-body">
-            <p>Advanced analytics and reporting will be implemented here...</p>
-          </div>
-        </div>
+        <AnalyticsDashboard />
       </div>
     )}
 
