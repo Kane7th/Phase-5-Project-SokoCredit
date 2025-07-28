@@ -1,6 +1,7 @@
 from app import create_app
 from app.extensions import db
 from app.models import User, Customer, Loan, Repayment, LoanProduct, RepaymentSchedule, Notification
+from app.models.repaymentSchedule import RepaymentStatus  # Ensure Enum is imported
 from datetime import datetime, timedelta, timezone
 import random
 
@@ -85,7 +86,7 @@ with app.app_context():
             business_name='Fatuma Veggies',
             documents={"id_card": "id_doc1.jpg", "shop_photo": "shop1.jpg"},
             created_by=users[3].id,
-            mama_mboga_user_id=users[3].id
+            customer_user_id=users[3].id
         ),
         Customer(
             full_name='Amina Yusuf',
@@ -94,7 +95,7 @@ with app.app_context():
             business_name='Amina Fruits',
             documents={"id_card": "id_doc2.jpg", "shop_photo": "shop2.jpg"},
             created_by=users[4].id,
-            mama_mboga_user_id=users[4].id
+            customer_user_id=users[4].id
         )
     ]
     db.session.add_all(customers)
@@ -134,7 +135,7 @@ with app.app_context():
         amount = random.randint(10000, int(loan_product.max_amount))
 
         loan = Loan(
-            borrower_id=borrower_user.id,
+            customer_id=borrower_user.id,
             lender_id=lender_user.id,
             amount=amount,
             interest_rate=loan_product.interest_rate,
@@ -148,7 +149,6 @@ with app.app_context():
         db.session.add(loan)
         db.session.commit()
 
-        # Generate 3 repayment schedules per loan
         schedules = []
         for i in range(3):
             due = issued_date + timedelta(days=30 * (i + 1))
@@ -156,28 +156,30 @@ with app.app_context():
                 loan_id=loan.id,
                 due_date=due,
                 amount_due=round(amount / 3, 2),
-                status=random.choice(['unpaid', 'partial', 'paid'])
+                status=random.choice([
+                    RepaymentStatus.UNPAID,
+                    RepaymentStatus.PARTIAL,
+                    RepaymentStatus.PAID
+                ])
             )
             schedules.append(schedule)
         db.session.add_all(schedules)
         db.session.commit()
 
-        # Generate 1-2 repayments per loan
         for sched in schedules[:2]:
             repayment = Repayment(
                 loan_id=loan.id,
-                user_id=borrower_user.id,
                 schedule_id=sched.id,
-                mpesa_code=f"MPESA{random.randint(100000,999999)}",
-                amount_paid=round(sched.amount_due * random.uniform(0.5, 1.0), 2),
-                paid_at=sched.due_date - timedelta(days=random.randint(0, 10))
+                customer_id=borrower_user.id,  # borrower_user is the correct user (customer role)
+                mpesa_code=f"MPESA{random.randint(1000,9999)}",
+                amount_paid=5000,
+                paid_at=datetime.utcnow()
             )
             db.session.add(repayment)
         db.session.commit()
 
-    # Seed loans
-    seed_loan(users[3], customers[0], loan_products[0], users[1])  # Mama Mboga One + Lender One
-    seed_loan(users[4], customers[1], loan_products[1], users[2])  # Mama Mboga Two + Lender Two
+    seed_loan(users[3], customers[0], loan_products[0], users[1])
+    seed_loan(users[4], customers[1], loan_products[1], users[2])
 
     print("✅ Loans, schedules, and repayments seeded.\n")
 

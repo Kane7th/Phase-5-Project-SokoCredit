@@ -11,11 +11,17 @@ class Customer(db.Model, SerializerMixin):
     phone = db.Column(db.String(20), unique=True, nullable=False)
     full_name = db.Column(db.String(100), nullable=False)
     business_name = db.Column(db.String(100))
+    email = db.Column(db.String(120), nullable=True)
     location = db.Column(db.String(100))
-    documents = db.Column(db.JSON, default={})
+    documents = db.Column(db.JSON, default={}) 
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    lender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
+
+    # The user (admin/lender) who created this customer manually
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    # The user account linked to this customer (i.e., self-registered)
     customer_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), unique=True, nullable=True)
 
     # Relationships
@@ -30,6 +36,12 @@ class Customer(db.Model, SerializerMixin):
         foreign_keys=[customer_user_id],
         back_populates="customer_profile"
     )
-    
+
+    lender_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', name='fk_customers_lender_id_user'),
+        nullable=True
+    )
+
     def __repr__(self):
         return f"<Customer id={self.id} full_name='{self.full_name}' phone='{self.phone}'>"

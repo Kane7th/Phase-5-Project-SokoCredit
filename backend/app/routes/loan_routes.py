@@ -20,7 +20,7 @@ def index():
 # CUSTOMER can apply for a loan
 @loan_bp.route('', methods=['POST'])
 @jwt_required()
-@role_required('customer')
+@role_required(['admin', 'lender'])
 def apply_loan():
     try:
         data = request.get_json()
