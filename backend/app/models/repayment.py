@@ -11,7 +11,7 @@ class Repayment(db.Model, SerializerMixin):
     
     loan_id = db.Column(db.Integer, db.ForeignKey('loans.id'), nullable=False)
     schedule_id = db.Column(db.Integer, db.ForeignKey('repayment_schedules.id'), nullable=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
     mpesa_code = db.Column(db.String(50), unique=True, nullable=False)
     amount_paid = db.Column(db.Float, nullable=False)

@@ -33,7 +33,7 @@ class Loan(db.Model, SerializerMixin):
     disbursed_date = db.Column(db.DateTime)
     rejected_reason = db.Column(db.String)
 
-    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     lender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     loan_product_id = db.Column(db.Integer, db.ForeignKey('loan_products.id'))
 

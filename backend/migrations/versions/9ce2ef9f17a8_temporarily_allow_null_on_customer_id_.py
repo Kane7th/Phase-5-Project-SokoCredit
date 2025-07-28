@@ -1,8 +1,8 @@
-"""Updated RepaymentSchedule model and changed mama_mboga role to customer
+"""Temporarily allow NULL on customer_id in repayments
 
-Revision ID: 92ce214b0bd4
+Revision ID: 9ce2ef9f17a8
 Revises: 
-Create Date: 2025-07-28 10:10:52.888178
+Create Date: 2025-07-28 10:15:46.964345
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '92ce214b0bd4'
+revision = '9ce2ef9f17a8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -27,13 +27,13 @@ def upgrade():
         batch_op.drop_column('mama_mboga_user_id')
 
     with op.batch_alter_table('loans', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('customer_id', sa.Integer(), nullable=False))
+        batch_op.add_column(sa.Column('customer_id', sa.Integer(), nullable=True))
         batch_op.drop_constraint(batch_op.f('loans_borrower_id_fkey'), type_='foreignkey')
         batch_op.create_foreign_key(None, 'users', ['customer_id'], ['id'])
         batch_op.drop_column('borrower_id')
 
     with op.batch_alter_table('repayments', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('customer_id', sa.Integer(), nullable=False))
+        batch_op.add_column(sa.Column('customer_id', sa.Integer(), nullable=True))
         batch_op.drop_constraint(batch_op.f('repayments_user_id_fkey'), type_='foreignkey')
         batch_op.create_foreign_key(None, 'users', ['customer_id'], ['id'])
         batch_op.drop_column('user_id')
