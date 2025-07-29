@@ -66,11 +66,26 @@ def create_customer():
     data = request.get_json()
     user_id, role = extract_identity()
 
-    if not data.get("full_name") or not data.get("phone"):
-        return jsonify({"msg": "Full name and phone are required"}), 400
+    # Fetch user record to reuse fields if role is customer
+    from app.models.user import User  # Ensure this import works based on your structure
+    user = User.query.get(user_id)
+
+    if not data.get("phone") and not (user and user.phone):
+        return jsonify({"msg": "Phone is required"}), 400
+
+    # Build full name
+    full_name = data.get("full_name")
+    if not full_name and user:
+        full_name = f"{user.first_name or ''} {user.middle_name or ''} {user.last_name or ''}".strip()
+
+    if not full_name:
+        return jsonify({"msg": "Full name is required"}), 400
+
+    phone = data.get("phone") or user.phone
+    email = data.get("email") or user.email
 
     # Ensure unique phone
-    if Customer.query.filter_by(phone=data["phone"]).first():
+    if Customer.query.filter_by(phone=phone).first():
         return jsonify({"msg": "Phone number already exists"}), 409
 
     # Enforce that customer can only create their own profile once
@@ -84,11 +99,9 @@ def create_customer():
             return jsonify({"msg": "customer_user_id is required for admin/lender"}), 400
 
     customer_kwargs = {
-        "first_name" : data["first_name"],
-        "middle_name" : data["middle_name"],
-        "last_name" : data["last_name"],
-        "phone": data["phone"],
-        "email": data.get("email"),
+        "full_name": full_name,
+        "phone": phone,
+        "email": email,
         "business_name": data.get("business_name"),
         "location": data.get("location"),
         "documents": data.get("documents", {}),
