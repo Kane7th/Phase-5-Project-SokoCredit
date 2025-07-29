@@ -16,7 +16,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     jwt.init_app(app)
 
     # Enable CORS
-    CORS(app, resources={r"/auth/*": {"origins": "http://localhost:5173"}})
+    CORS(app, resources={r"/api/auth/*": {"origins": "http://localhost:5173"}, r"/api/customers/*": {"origins": "http://localhost:5173"}})
 
     # Initialize socketio
     socketio.init_app(app)
@@ -34,8 +34,8 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.analytics import analytics_bp
     from app.models.notification import Notification
 
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(customers_bp, url_prefix='/customers')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(customers_bp, url_prefix='/api/customers')
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
     app.register_blueprint(repayment_bp)

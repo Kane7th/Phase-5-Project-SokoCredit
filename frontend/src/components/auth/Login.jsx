@@ -83,7 +83,12 @@ const Login = () => {
             break
           case 'customer':
           case 'mama_mboga':
-            navigate('/dashboard/customer')
+            // Check if user needs to complete profile
+            if (decoded.next) {
+              navigate(decoded.next)
+            } else {
+              navigate('/dashboard/customer')
+            }
             break
           default:
             navigate('/dashboard')
