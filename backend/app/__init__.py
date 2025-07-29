@@ -10,10 +10,12 @@ def create_app(config="config.default_config.DefaultConfig"):
     app = Flask(__name__)
     app.config.from_object(config)
 
-    # Debugging: Print the database URL to ensure it's loaded correctly
-    print("[DEBUG] DB URL:", os.getenv("DATABASE_URL"))
-    print("[DEBUG] Loaded config DB:", app.config["SQLALCHEMY_DATABASE_URI"])
+    # Inject env DATABASE_URL if available
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 
+    print("[DEBUG] Final DB URL:", app.config["SQLALCHEMY_DATABASE_URI"])
 
     # Init extensions
     db.init_app(app)
