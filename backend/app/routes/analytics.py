@@ -176,7 +176,6 @@ def get_loan_types():
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_loan_repayment():
-    # Example repayment schedule and rate (dummy data)
     repayment_schedule = [
         {"month": "Apr", "amount": 180000},
         {"month": "May", "amount": 240000},

@@ -84,7 +84,9 @@ def create_customer():
             return jsonify({"msg": "customer_user_id is required for admin/lender"}), 400
 
     customer_kwargs = {
-        "full_name": data["full_name"],
+        "first_name" : data["first_name"],
+        "middle_name" : data["middle_name"],
+        "last_name" : data["last_name"],
         "phone": data["phone"],
         "email": data.get("email"),
         "business_name": data.get("business_name"),
@@ -196,7 +198,7 @@ def get_customer(customer_id):
 
 @customers_bp.route("/my_customers", methods=["GET"])
 @jwt_required()
-@role_required(["admin", "lender"])
+# @role_required(["admin", "lender"])
 def get_my_customers():
     identity = get_jwt_identity()
     print(f"DEBUG: JWT identity received: {identity}")
