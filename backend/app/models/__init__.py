@@ -8,5 +8,5 @@ from .notification import Notification
 
 __all__ = [
     'User', 'Loan', 'Customer', 'Repayment', 
-    'RepaymentSchedule', 'LoanProduct'
+    'RepaymentSchedule', 'LoanProduct', 'Notification'
 ]

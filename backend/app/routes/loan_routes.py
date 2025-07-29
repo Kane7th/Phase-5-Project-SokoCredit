@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models import Loan, User, RepaymentSchedule, LoanProduct
 from app.models.loan import LoanStatus
 from app.models.loan_products import RepaymentFrequencies
+from app.models.repaymentSchedule import RepaymentStatus
 from utils.decorators import role_required
 
 loan_bp = Blueprint('loan_bp', __name__, url_prefix='/loans')
@@ -20,7 +21,7 @@ def index():
 # CUSTOMER can apply for a loan
 @loan_bp.route('', methods=['POST'])
 @jwt_required()
-@role_required(['admin', 'lender'])
+@role_required('customer')
 def apply_loan():
     try:
         data = request.get_json()
@@ -37,7 +38,7 @@ def apply_loan():
         if not isinstance(duration, int) or duration <= 0:
             return jsonify({'error': 'Duration must be a positive number.'}), 400
 
-        borrower_id = int(get_jwt_identity().split(':')[0])
+        customer_id = int(get_jwt_identity().split(':')[0])
 
         lender = User.query.filter_by(role='lender').first()
         if not lender:
@@ -51,8 +52,8 @@ def apply_loan():
             amount=amount,
             interest_rate=interest,
             duration_months=duration,
-            borrower_id=borrower_id,
-            status='pending',
+            customer_id=customer_id,
+            status=LoanStatus.pending,
             lender_id=lender.id,
             loan_product_id=loan_product.id
         )
@@ -81,9 +82,18 @@ def get_loans():
         if user.role in ['admin', 'lender']:
             loans = Loan.query.all()
         elif user.role == 'customer':
-            loans = Loan.query.filter_by(borrower_id=user.id).all()
+            loans = Loan.query.filter_by(customer_id=user.id).all()
 
-        return jsonify([loan.to_dict() for loan in loans]), 200
+        return jsonify([
+            {
+                "id": loan.id,
+                "amount": loan.amount,
+                "status": loan.status.value,
+                "customer_id": loan.customer_id,
+                "lender_id": loan.lender_id
+            }
+            for loan in loans
+        ]), 200
 
     except Exception as e:
         db.session.rollback()
@@ -227,7 +237,7 @@ def approve_loan(id):
                 loan_id=loan.id,
                 due_date=today + timedelta(weeks=i),
                 amount_due=amount_per_week,
-                status='unpaid'
+                status=RepaymentStatus.UNPAID
             )
             db.session.add(schedule)
 
@@ -275,7 +285,7 @@ def reject_loan(id):
 
 
 # Lender/admin can disburse loans after approval
-@loan_bp.route('/loans/<int:id>/disburse', methods=['PATCH'])
+@loan_bp.route('/<int:id>/disburse', methods=['PATCH'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def disburse_loan(id):
