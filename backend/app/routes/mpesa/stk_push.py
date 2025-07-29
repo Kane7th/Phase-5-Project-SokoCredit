@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import current_app
 from .client import get_access_token
 
-def send_stk_push(phone_number: str, amount: int, account_ref='SokoCredit', description='Loan payments'):
+def send_stk_push(phone_number: str, amount: int, account_ref='TestSoko', description='Loan payments'):
     """
     Helper func. handling STK Push request logic, later will be 
     imported into views.py.
@@ -14,13 +14,16 @@ def send_stk_push(phone_number: str, amount: int, account_ref='SokoCredit', desc
     
     business_shortcode = current_app.config.get('MPESA_SHORTCODE')
     passkey = current_app.config.get("MPESA_PASSKEY")
-    
+    callback_url = current_app.config.get("MPESA_CALLBACK_URL")
+
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     
     # combine for password
     data_to_encode = business_shortcode + passkey + timestamp
     encoded_password = base64.b64encode(data_to_encode.encode()).decode()
     
+    print(f"Password: {encoded_password}")
+    print(f"Timestamp: {timestamp}")
     # build request body
     payload = {
         'BusinessShortCode': business_shortcode,
@@ -31,7 +34,7 @@ def send_stk_push(phone_number: str, amount: int, account_ref='SokoCredit', desc
         "PartyA": phone_number,
         "PartyB": business_shortcode,
         "PhoneNumber": phone_number,
-        "CallBackURL": current_app.config.get("MPESA_CALLBACK_URL"),
+        "CallBackURL": callback_url,
         "AccountReference": account_ref,
         "TransactionDesc": description
     }
