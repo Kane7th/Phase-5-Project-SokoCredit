@@ -10,13 +10,20 @@ def create_app(config="config.default_config.DefaultConfig"):
     app = Flask(__name__)
     app.config.from_object(config)
 
+    # Inject env DATABASE_URL if available
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+
+    print("[DEBUG] Final DB URL:", app.config["SQLALCHEMY_DATABASE_URI"])
+
     # Init extensions
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
     # Enable CORS
-    CORS(app, resources={r"/auth/*": {"origins": "http://localhost:5173"}})
+    CORS(app, resources={r"/api/auth/*": {"origins": "http://localhost:5173"}, r"/api/customers/*": {"origins": "http://localhost:5173"}})
 
     # Initialize socketio
     socketio.init_app(app)
@@ -34,8 +41,8 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.analytics import analytics_bp
     from app.models.notification import Notification
 
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(customers_bp, url_prefix='/customers')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(customers_bp, url_prefix='/api/customers')
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
     app.register_blueprint(repayment_bp)

@@ -9,6 +9,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import Layout from './components/common/Layout'
 import NotificationListener from './components/NotificationListener'
 import ProfilePage from './components/customer/ProfilePage'
+import CompleteProfile from './components/customer/CompleteProfile'
 import Settings from './components/common/Settings'
 import ChangePassword from './components/auth/ChangePassword'
 import ForgotPassword from './components/auth/ForgotPassword'
@@ -55,6 +56,15 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['admin', 'lender', 'customer']}>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/complete-profile"
+          element={
+            <ProtectedRoute allowedRoles={['customer']}>
+              <CompleteProfile />
             </ProtectedRoute>
           }
         />
