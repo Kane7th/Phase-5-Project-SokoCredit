@@ -118,6 +118,7 @@ def create_customer():
 
     return jsonify({"msg": "Customer created", "id": customer.id}), 201
 
+
 @customers_bp.route("/", methods=["GET"])
 @jwt_required()
 @role_required(["admin", "lender"])
