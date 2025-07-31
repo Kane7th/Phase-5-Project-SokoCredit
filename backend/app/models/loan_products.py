@@ -10,21 +10,25 @@ class RepaymentFrequencies(pyEnum):
     weekly = 'weekly'
     monthly = 'monthly'
 
-
 class LoanProduct(db.Model, SerializerMixin):
     __tablename__ = 'loan_products'
 
-    serialize_rules = ('-loans',)
+    serialize_rules = ('-loans', '-lender.loan_products')
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     interest_rate = db.Column(db.Float, nullable=False)
     duration_months = db.Column(db.Float, nullable=False)
-    max_amount = db.Column(db.Float, nullable=False)
+    max_amount = db.Column(db.Float, nullable=True)
     frequency = db.Column(Enum(RepaymentFrequencies), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Lender relationship 
+    lender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    lender = db.relationship("User", backref="loan_products")
+
+    # loan product <--> loans
     loans = db.relationship(
         'Loan',
         back_populates='loan_product',

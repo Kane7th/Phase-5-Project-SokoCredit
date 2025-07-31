@@ -33,13 +33,18 @@ class Loan(db.Model, SerializerMixin):
     disbursed_date = db.Column(db.DateTime)
     rejected_reason = db.Column(db.String)
 
+    # loan applicant - customer role
     customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    lender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    loan_product_id = db.Column(db.Integer, db.ForeignKey('loan_products.id'))
-
-    loan_product = db.relationship('LoanProduct', back_populates='loans')
     customer = db.relationship('User', back_populates='loans', foreign_keys=[customer_id])
+    
+    # loan issuer via loan_product.lender_id
+    lender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     lender = db.relationship("User", back_populates="issued_loans", foreign_keys=[lender_id])
+    
+    # Loan product to be selected by customer
+    loan_product_id = db.Column(db.Integer, db.ForeignKey('loan_products.id'))
+    loan_product = db.relationship('LoanProduct', back_populates='loans')
+   
     repayments = db.relationship("Repayment", back_populates="loan", cascade="all, delete-orphan")
     repayment_schedules = db.relationship('RepaymentSchedule', back_populates='loan', cascade='all, delete-orphan')
 
