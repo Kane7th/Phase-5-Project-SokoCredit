@@ -10,13 +10,20 @@ def create_app(config="config.default_config.DefaultConfig"):
     app = Flask(__name__)
     app.config.from_object(config)
 
+    # Inject env DATABASE_URL if available
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+
+    print("[DEBUG] Final DB URL:", app.config["SQLALCHEMY_DATABASE_URI"])
+
     # Init extensions
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
     # Enable CORS
-    CORS(app, resources={r"/auth/*": {"origins": "http://localhost:5173"}})
+    CORS(app, resources={r"/api/auth/*": {"origins": "http://localhost:5173"}, r"/api/customers/*": {"origins": "http://localhost:5173"}})
 
     # Initialize socketio
     socketio.init_app(app)
@@ -26,14 +33,22 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
+    from app.routes.repayment_routes import repayment_bp
+    from app.routes.mpesa.test_mpesa_route import test_bp
+    from app.routes.mpesa.views import mpesa_bp
+    from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
     from app.models.notification import Notification
 
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    app.register_blueprint(customers_bp, url_prefix='/customers')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(customers_bp, url_prefix='/api/customers')
     app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp)
+    app.register_blueprint(repayment_bp)
+    app.register_blueprint(test_bp)
+    app.register_blueprint(mpesa_bp)
+    app.register_blueprint(callback_bp)
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
     app.register_blueprint(analytics_bp)

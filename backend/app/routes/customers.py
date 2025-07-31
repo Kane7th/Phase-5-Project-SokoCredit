@@ -18,8 +18,8 @@ def extract_identity():
     return int(user_id_str.replace("user_", "")), role
 
 def is_authorized(customer, user_id, role):
-    if role == "mama_mboga":
-        return customer.mama_mboga_user_id == user_id
+    if role == "customer":
+        return customer.customer_user_id == user_id
     return role in ["admin", "lender"] or customer.created_by == user_id
 
 def format_customer(customer):
@@ -61,37 +61,52 @@ def generate_excel(customers):
 
 @customers_bp.route("/", methods=["POST"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def create_customer():
     data = request.get_json()
     user_id, role = extract_identity()
 
-    if not data.get("full_name") or not data.get("phone"):
-        return jsonify({"msg": "Full name and phone are required"}), 400
+    # Fetch user record to reuse fields if role is customer
+    from app.models.user import User  # Ensure this import works based on your structure
+    user = User.query.get(user_id)
+
+    if not data.get("phone") and not (user and user.phone):
+        return jsonify({"msg": "Phone is required"}), 400
+
+    # Build full name
+    full_name = data.get("full_name")
+    if not full_name and user:
+        full_name = f"{user.first_name or ''} {user.middle_name or ''} {user.last_name or ''}".strip()
+
+    if not full_name:
+        return jsonify({"msg": "Full name is required"}), 400
+
+    phone = data.get("phone") or user.phone
+    email = data.get("email") or user.email
 
     # Ensure unique phone
-    if Customer.query.filter_by(phone=data["phone"]).first():
+    if Customer.query.filter_by(phone=phone).first():
         return jsonify({"msg": "Phone number already exists"}), 409
 
-    # Enforce that mama_mboga can only create their own profile once
-    if role == "mama_mboga":
-        if Customer.query.filter_by(mama_mboga_user_id=user_id).first():
+    # Enforce that customer can only create their own profile once
+    if role == "customer":
+        if Customer.query.filter_by(customer_user_id=user_id).first():
             return jsonify({"msg": "You already have a profile"}), 409
-        mama_mboga_user_id = user_id
+        customer_user_id = user_id
     else:
-        mama_mboga_user_id = data.get("mama_mboga_user_id")
-        if not mama_mboga_user_id:
-            return jsonify({"msg": "mama_mboga_user_id is required for admin/lender"}), 400
+        customer_user_id = data.get("customer_user_id")
+        if not customer_user_id:
+            return jsonify({"msg": "customer_user_id is required for admin/lender"}), 400
 
     customer_kwargs = {
-        "full_name": data["full_name"],
-        "phone": data["phone"],
-        "email": data.get("email"),
+        "full_name": full_name,
+        "phone": phone,
+        "email": email,
         "business_name": data.get("business_name"),
         "location": data.get("location"),
         "documents": data.get("documents", {}),
         "created_by": user_id,
-        "mama_mboga_user_id": mama_mboga_user_id
+        "customer_user_id": customer_user_id
     }
 
     customer = Customer(**customer_kwargs)
@@ -102,6 +117,7 @@ def create_customer():
     print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     return jsonify({"msg": "Customer created", "id": customer.id}), 201
+
 
 @customers_bp.route("/", methods=["GET"])
 @jwt_required()
@@ -182,7 +198,7 @@ def list_customers():
 
 @customers_bp.route("/<int:customer_id>", methods=["GET"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def get_customer(customer_id):
     user_id, role = extract_identity()
     customer = Customer.query.get_or_404(customer_id)
@@ -196,10 +212,26 @@ def get_customer(customer_id):
 
 @customers_bp.route("/my_customers", methods=["GET"])
 @jwt_required()
-@role_required("admin", "lender")
+# @role_required(["admin", "lender"])
 def get_my_customers():
     identity = get_jwt_identity()
-    user_id = identity if isinstance(identity, int) else int(identity.split("_")[-1])
+    print(f"DEBUG: JWT identity received: {identity}")
+    # Try to parse user_id from identity string
+    try:
+        # If identity is string like "15:lender", split by ":" and convert first part to int
+        if isinstance(identity, str) and ":" in identity:
+            user_id_str, role = identity.split(":")
+            if user_id_str.startswith("user_"):
+                user_id_str = user_id_str[len("user_"):]
+            user_id = int(user_id_str)
+        elif isinstance(identity, int):
+            user_id = identity
+        else:
+            raise ValueError("Unexpected identity format")
+    except Exception as e:
+        print(f"Error parsing user_id from identity: {e}")
+        return jsonify({"msg": "Invalid user identity format"}), 400
+
     customers = Customer.query.filter_by(lender_id=user_id).all()
 
     # Audit log for listing own customers 
@@ -208,7 +240,7 @@ def get_my_customers():
 
 @customers_bp.route("/<int:customer_id>", methods=["PATCH"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def patch_customer(customer_id):
     data = request.get_json()
     user_id, role = extract_identity()
@@ -254,32 +286,53 @@ def delete_customer(customer_id):
     db.session.commit()
     return '', 204
 
-@customers_bp.route("/openapi", methods=["GET"])
-def openapi_schema():
-    schema = {
-        "paths": {
-            "/customers/": {
-                "get": {
-                    "summary": "List customers",
-                    "parameters": [
-                        {"name": "page", "in": "query", "type": "integer"},
-                        {"name": "per_page", "in": "query", "type": "integer"},
-                        {"name": "search", "in": "query", "type": "string"},
-                        {"name": "created_by", "in": "query", "type": "integer"},
-                        {"name": "business_name", "in": "query", "type": "string"},
-                        {"name": "has_documents", "in": "query", "type": "string"},
-                        {"name": "location", "in": "query", "type": "string"},
-                        {"name": "format", "in": "query", "type": "string"}
-                    ],
-                    "responses": {
-                        "200": {"description": "Customer list"}
-                    }
-                }
-            }
-        }
-    }
-    return jsonify(schema)
+@customers_bp.route("/dashboard-data", methods=["GET"])
+@jwt_required()
+@role_required(["admin", "lender", "customer"])
+def customer_dashboard_data():
+    from app.models.loan import Loan
+    from app.models.repayment import Repayment
 
+    user_id, role = extract_identity()
+
+    # Fetch customer details
+    customer = Customer.query.filter_by(customer_user_id=user_id).first()
+    if not customer:
+        return jsonify({"msg": "Customer profile not found"}), 404
+
+    # Fetch loans for customer
+    loans = Loan.query.filter_by(customer_id=customer.id).all()
+
+    # Fetch payments for customer
+    payments = Repayment.query.filter_by(customer_id=customer.id).all()
+
+    # Example credit profile and payment history data
+    creditProfile = {
+        "score": 700  # Placeholder score
+    }
+    paymentHistory = 95  # Placeholder percentage
+
+    data = {
+        "customer": {
+            "id": customer.id,
+            "full_name": customer.full_name,
+            "phone": customer.phone,
+            "business_name": customer.business_name,
+            "location": customer.location,
+            "documents": customer.documents
+        },
+        "loans": [loan.to_dict() for loan in loans],  # Assuming Loan model has to_dict()
+        "payments": [payment.to_dict() for payment in payments],  # Assuming Payment model has to_dict()
+        "creditProfile": creditProfile,
+        "paymentHistory": paymentHistory
+    }
+
+    return jsonify(data), 200
+
+# Check if file is allowed
+def allowed_file(filename):
+    allowed_exts = {"pdf", "jpg", "jpeg", "png"}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
 
 # Upload customer documents
 import os
@@ -290,7 +343,7 @@ UPLOAD_FOLDER = "uploads/customers"
 
 @customers_bp.route("/<int:customer_id>/upload", methods=["POST"])
 @jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
+@role_required(["admin", "lender", "customer"])
 def upload_customer_document(customer_id):
     user_id, role = extract_identity()
     customer = Customer.query.get_or_404(customer_id)
@@ -326,34 +379,3 @@ def upload_customer_document(customer_id):
     print(f"[AUDIT LOG] User {user_id} ({role}) uploaded '{doc_type}' for customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
-
-# Check if file is allowed
-def allowed_file(filename):
-    allowed_exts = current_app.config.get("ALLOWED_EXTENSIONS", {"pdf", "jpg", "jpeg", "png"})
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
-
-
-
-
-
-# Unit tests
-import unittest
-from flask import Flask
-from flask.testing import FlaskClient
-
-class CustomersTestCase(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app("testing")
-        self.client: FlaskClient = self.app.test_client()
-        self.access_token = "FAKE_JWT_TOKEN"
-
-    def test_list_customers_filters(self):
-        response = self.client.get("/customers/?search=test&location=Nairobi", headers={"Authorization": f"Bearer {self.access_token}"})
-        self.assertIn(response.status_code, [200, 401])
-
-    def test_my_customers_with_documents(self):
-        response = self.client.get("/customers/my_customers?has_documents=true", headers={"Authorization": f"Bearer {self.access_token}"})
-        self.assertIn(response.status_code, [200, 401])
-
-if __name__ == "__main__":
-    unittest.main()

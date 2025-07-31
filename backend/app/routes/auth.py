@@ -10,23 +10,19 @@ from utils.decorators import role_required
 auth_bp = Blueprint('auth', __name__)
 
 phone_otps = {}  # Temporary in-memory store
-email_otps = {} # Temporary in-memory store
+email_otps = {}  # Temporary in-memory store
 
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
-    credential = data.get("credential")  # can be email or phone
+    credential = data.get("credential")
     password = data.get("password")
 
     if not credential or not password:
         return jsonify({"msg": "Phone/email and password are required"}), 400
 
-    # Check if it's a phone number or email
-    if "@" in credential:
-        user = User.query.filter_by(email=credential).first()
-    else:
-        user = User.query.filter_by(phone=credential).first()
+    user = User.query.filter_by(email=credential).first() if "@" in credential else User.query.filter_by(phone=credential).first()
 
     if not user or not user.check_password(password):
         return jsonify({"msg": "Invalid credentials"}), 401
@@ -44,7 +40,6 @@ def get_profile():
     identity = get_jwt_identity()
     user_id_str, role = identity.split(":")
     user_id = int(user_id_str.replace("user_", ""))
-
     user = User.query.get(user_id)
 
     if not user:
@@ -56,19 +51,21 @@ def get_profile():
         "role": user.role
     }), 200
 
+
 @auth_bp.route("/register", methods=["POST"])
-@jwt_required()
-@role_required(["admin", "lender", "mama_mboga"])
 def register_user():
     data = request.get_json()
+    first_name = data.get("first_name")
+    middle_name = data.get("middle_name")
+    last_name = data.get("last_name")
     username = data.get("username")
     phone = data.get("phone")
     email = data.get("email")
     password = data.get("password")
-    role = data.get("role", "mama_mboga")
+    role = data.get("role", "customer")
 
-    if not username or not phone or not email or not password:
-        return jsonify({"msg": "Username, phone, email, and password are required"}), 400
+    if not all([first_name, last_name, username, phone, email, password]):
+        return jsonify({"msg": "First name, last name, username, phone, email, and password are required"}), 400
 
     if User.query.filter_by(username=username).first():
         return jsonify({"msg": "Username already exists"}), 409
@@ -77,18 +74,25 @@ def register_user():
     if User.query.filter_by(email=email).first():
         return jsonify({"msg": "Email already exists"}), 409
 
-    # Create User
-    user = User(username=username, phone=phone, email=email, role=role)
+    user = User(
+        first_name=first_name,
+        middle_name=middle_name,
+        last_name=last_name,
+        username=username,
+        phone=phone,
+        email=email,
+        role=role
+    )
     user.set_password(password)
+
     db.session.add(user)
     db.session.commit()
 
     print(f"[AUDIT LOG] Registered user {user.id} ({role})")
 
-    # If mama_mboga, prompt to complete customer profile
-    if role == "mama_mboga":
+    if role == "customer":
         return jsonify({
-            "msg": "Mama Mboga registered. Please complete your customer profile.",
+            "msg": "Customer registered. Please complete your customer profile.",
             "user_id": user.id,
             "next": "/customers/"
         }), 201
@@ -98,19 +102,14 @@ def register_user():
         "user_id": user.id
     }), 201
 
+
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
     jti = get_jwt()["jti"]
     return jsonify({"msg": "Successfully logged out"}), 200
 
-@auth_bp.route("/logout-all", methods=["POST"])
-@jwt_required()
-@role_required(["admin"])
-def logout_all():
-    return jsonify({"msg": "All sessions logged out"}), 200
 
-# Refresh token endpoint for JWT
 @auth_bp.route("/refresh-token", methods=["POST"])
 @jwt_required(refresh=True)
 def refresh_token():
@@ -118,11 +117,12 @@ def refresh_token():
     access_token = create_access_token(identity=identity)
     return jsonify(access_token=access_token), 200
 
-# Password reset functionality
-import secrets
-from flask import current_app
 
-reset_tokens = {}  # Temporary in-memory store, will use Redis or DB in production
+# Password Reset
+import secrets
+
+reset_tokens = {}
+
 
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
@@ -132,14 +132,10 @@ def forgot_password():
     if not email_or_phone:
         return jsonify({"msg": "Email or phone is required"}), 400
 
-    user = User.query.filter(
-        (User.email == email_or_phone) | (User.phone == email_or_phone)
-    ).first()
-
+    user = User.query.filter((User.email == email_or_phone) | (User.phone == email_or_phone)).first()
     if not user:
         return jsonify({"msg": "No account found"}), 404
 
-    # Generate token (simple random token for now)
     token = secrets.token_urlsafe(32)
     reset_tokens[token] = user.id
 
@@ -150,7 +146,7 @@ def forgot_password():
         "token_preview": token[:5] + "..."
     }), 200
 
-# Reset password endpoint 
+
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json()
@@ -170,15 +166,14 @@ def reset_password():
 
     user.set_password(new_password)
     db.session.commit()
-
-    # Remove token after use
     reset_tokens.pop(token, None)
 
     print(f"[AUDIT LOG] Password reset for user {user.username} ({user.email})")
 
     return jsonify({"msg": "Password has been reset successfully"}), 200
 
-# Phone verification functionality
+
+# Phone Verification
 @auth_bp.route("/verify-phone", methods=["POST"])
 @jwt_required()
 def verify_phone():
@@ -201,14 +196,13 @@ def verify_phone():
 
     user.is_phone_verified = True
     db.session.commit()
-
     phone_otps.pop(phone, None)
 
     print(f"[AUDIT LOG] User {user.username} verified phone {phone}")
 
     return jsonify({"msg": "Phone number verified successfully"}), 200
 
-# Send OTP to phone number (simulated for now and will replace with actual SMS service)
+
 @auth_bp.route("/send-phone-otp", methods=["POST"])
 @jwt_required()
 def send_phone_otp():
@@ -218,13 +212,14 @@ def send_phone_otp():
     if not phone:
         return jsonify({"msg": "Phone is required"}), 400
 
-    otp = "123456"  # Replace with random generator later
+    otp = "123456"
     phone_otps[phone] = otp
     print(f"[OTP SENT] Phone: {phone}, OTP: {otp}")
-    
+
     return jsonify({"msg": f"OTP sent to {phone}"}), 200
 
-# Extract user ID and role from JWT identity
+
+# Email Verification
 @auth_bp.route("/verify-email", methods=["POST"])
 @jwt_required()
 def verify_email():
@@ -247,14 +242,13 @@ def verify_email():
 
     user.is_email_verified = True
     db.session.commit()
-
     email_otps.pop(email, None)
 
     print(f"[AUDIT LOG] User {user.username} verified email {email}")
 
     return jsonify({"msg": "Email verified successfully"}), 200
 
-# Email verification functionality
+
 @auth_bp.route("/send-email-otp", methods=["POST"])
 @jwt_required()
 def send_email_otp():
@@ -264,8 +258,16 @@ def send_email_otp():
     if not email:
         return jsonify({"msg": "Email is required"}), 400
 
-    otp = "654321"  # Replace with random generator later
+    otp = "654321"
     email_otps[email] = otp
     print(f"[OTP SENT] Email: {email}, OTP: {otp}")
 
     return jsonify({"msg": f"OTP sent to {email}"}), 200
+
+
+# Helper function
+def extract_identity():
+    identity = get_jwt_identity()
+    print("DEBUG JWT identity:", identity)
+    user_id_str, role = identity.split(":")
+    return int(user_id_str.replace("user_", "")), role

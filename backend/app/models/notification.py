@@ -7,7 +7,7 @@ class Notification(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     message = db.Column(db.String(255), nullable=False)
     read = db.Column(db.Boolean, default=False)
-    is_deleted = db.Column(db.Boolean, default=False)  # Soft delete flag
+    is_deleted = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", backref=db.backref("notifications", lazy=True))
@@ -25,6 +25,7 @@ class Notification(db.Model):
             "created_at": self.created_at.isoformat()
         }
 
+    # --- Instance Methods ---
     def mark_as_read(self):
         self.read = True
         db.session.commit()
@@ -82,7 +83,7 @@ class Notification(db.Model):
     def get_latest_notification_for_user(user_id):
         return Notification.query.filter_by(user_id=user_id, is_deleted=False).order_by(Notification.created_at.desc()).first()
 
-    # --- Bulk Status Updates ---
+    # --- Bulk Updates ---
     @staticmethod
     def mark_all_as_read_for_user(user_id):
         updated = Notification.query.filter_by(user_id=user_id, read=False, is_deleted=False).update({"read": True})
@@ -95,7 +96,7 @@ class Notification(db.Model):
         db.session.commit()
         return updated
 
-    # --- Filtering Methods ---
+    # --- Filtering ---
     @staticmethod
     def get_notifications_by_read_status(user_id, read, page=None, per_page=None):
         query = Notification.query.filter_by(user_id=user_id, read=read, is_deleted=False).order_by(Notification.created_at.desc())

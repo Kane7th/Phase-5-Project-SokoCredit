@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { 
   Users, 
@@ -12,12 +12,28 @@ import {
   Calendar,
   CreditCard
 } from 'lucide-react'
+import { analyticsService } from '../../services/analyticsService'
+import { customerService } from '../../services/customerService'
 
 const LenderDashboard = () => {
   const { user } = useSelector((state) => state.auth)
   const [activeTab, setActiveTab] = useState('overview')
 
-  React.useEffect(() => {
+  const [stats, setStats] = useState({
+    myCustomers: 0,
+    activeLoans: 0,
+    totalLoanValue: 0, // KSH
+    collectionRate: 0,
+    overduePayments: 0,
+    todayTarget: 0,
+    todayCollected: 0
+  })
+
+  const [recentCustomers, setRecentCustomers] = useState([])
+  const [todayTasks, setTodayTasks] = useState([])
+  const [lenderCustomers, setLenderCustomers] = useState([])
+
+  useEffect(() => {
     const handleTabChange = (e) => {
       setActiveTab(e.detail)
     }
@@ -27,67 +43,48 @@ const LenderDashboard = () => {
     }
   }, [])
 
-  // Mock data - replace with API calls
-  const [stats, setStats] = useState({
-    myCustomers: 23,
-    activeLoans: 18,
-    totalLoanValue: 1200000, // KSH
-    collectionRate: 94.2,
-    overduePayments: 3,
-    todayTarget: 45000,
-    todayCollected: 28500
-  })
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
 
-  const [recentCustomers, setRecentCustomers] = useState([
-    {
-      id: 1,
-      full_name: 'Mary Wanjiku',
-      business_name: 'Mary\'s Vegetables',
-      business_type: 'mama_mboga',
-      phone: '+254712345678',
-      location: 'Kawangware Market',
-      active_loan: {
-        amount: 50000,
-        status: 'active',
-        next_payment: '2024-01-20',
-        payment_amount: 2500
-      },
-      created_at: '2024-01-10'
-    },
-    {
-      id: 2,
-      full_name: 'Grace Akinyi',
-      business_name: 'Grace\'s Fruits',
-      business_type: 'mama_mboga',
-      phone: '+254787654321',
-      location: 'Kisumu Central',
-      active_loan: null,
-      created_at: '2024-01-15'
+  useEffect(() => {
+    if (activeTab === 'customers') {
+      fetchLenderCustomers()
     }
-  ])
+  }, [activeTab])
 
-  const [todayTasks, setTodayTasks] = useState([
-    {
-      type: 'payment_due',
-      customer: 'Mary Wanjiku',
-      amount: 2500,
-      location: 'Kawangware Market',
-      time: '10:00 AM'
-    },
-    {
-      type: 'new_customer',
-      customer: 'Susan Nyakio',
-      location: 'Nakuru Town',
-      time: '2:00 PM'
-    },
-    {
-      type: 'loan_followup',
-      customer: 'Jane Wambui',
-      amount: 1800,
-      location: 'Eastleigh Market',
-      time: '4:00 PM'
+  const fetchDashboardData = async () => {
+    try {
+      const overview = await analyticsService.getOverview()
+      // Map overview data to stats state
+      setStats({
+        myCustomers: overview.myCustomers || 0,
+        activeLoans: overview.activeLoans || 0,
+        totalLoanValue: overview.totalLoanValue || 0,
+        collectionRate: overview.collectionRate || 0,
+        overduePayments: overview.overduePayments || 0,
+        todayTarget: overview.todayTarget || 0,
+        todayCollected: overview.todayCollected || 0
+      })
+
+      // For recentCustomers and todayTasks, you may need additional API calls or data processing
+      // For now, clear mock data
+      setRecentCustomers([])
+      setTodayTasks([])
+
+    } catch (error) {
+      console.error('Failed to fetch lender dashboard data:', error)
     }
-  ])
+  }
+
+  const fetchLenderCustomers = async () => {
+    try {
+      const response = await customerService.getMyCustomers()
+      setLenderCustomers(response)
+    } catch (error) {
+      console.error('Failed to fetch lender customers:', error)
+    }
+  }
 
   const getBusinessTypeIcon = (type) => {
     const icons = {
@@ -313,10 +310,40 @@ const LenderDashboard = () => {
         <div className="dashboard-content">
           <div className="card">
             <div className="card-header">
-              <h3 className="heading-3">Customer Management</h3>
+              <h3 className="heading-3">My Customers</h3>
             </div>
             <div className="card-body">
-              <p>Customer management interface will be implemented here...</p>
+              {lenderCustomers.length === 0 ? (
+                <p>No customers found.</p>
+              ) : (
+                <div className="customer-list">
+                  {lenderCustomers.map(customer => (
+                    <div key={customer.id} className="customer-item">
+                      <div className="customer-avatar">
+                        {getBusinessTypeIcon(customer.business_type)}
+                      </div>
+                      <div className="customer-info">
+                        <h4>{customer.full_name}</h4>
+                        <p>{customer.business_name}</p>
+                        <div className="customer-meta">
+                          <span>📱 {customer.phone}</span>
+                          <span>📍 {customer.location}</span>
+                        </div>
+                      </div>
+                      <div className="customer-actions">
+                        <button className="btn btn-sm btn-secondary">
+                          <Eye size={14} />
+                          View
+                        </button>
+                        <button className="btn btn-sm btn-primary">
+                          <Phone size={14} />
+                          Call
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

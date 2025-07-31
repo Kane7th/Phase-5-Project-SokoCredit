@@ -13,10 +13,6 @@ import FileUpload from '../common/FileUpload'
 const CustomerRegister = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [uploadedDocuments, setUploadedDocuments] = useState({
-    id_document: null,
-    business_permit: null
-  })
 
   const dispatch = useDispatch()
   const { isLoading, error } = useSelector((state) => state.auth)
@@ -31,34 +27,21 @@ const CustomerRegister = () => {
   const watchedPassword = watch('password')
 
   const onSubmit = async (data) => {
-    const formData = new FormData()
     
-    // Add all form data
+    const submitData = {}
     Object.keys(data).forEach(key => {
       if (key !== 'confirm_password') {
-        formData.append(key, data[key])
+        submitData[key] = data[key]
       }
     })
 
     // Set role as customer
-    formData.append('role', 'customer')
+    submitData.role = 'customer'
 
-    // Add uploaded documents
-    Object.keys(uploadedDocuments).forEach(docType => {
-      if (uploadedDocuments[docType]) {
-        formData.append(docType, uploadedDocuments[docType].file)
-      }
-    })
-
-    dispatch(registerUser(formData))
+    dispatch(registerUser(submitData))
   }
 
-  const handleDocumentUpload = (docType, file) => {
-    setUploadedDocuments(prev => ({
-      ...prev,
-      [docType]: file ? { file, name: file.name } : null
-    }))
-  }
+
 
   return (
     <div className="auth-container">
@@ -67,7 +50,7 @@ const CustomerRegister = () => {
           <div className="auth-logo">🛒</div>
           <h1 className="auth-title">Join SokoCredit</h1>
           <p className="auth-subtitle">
-            Register your business and access microfinance services
+            Register and access microfinance services
           </p>
         </div>
 
@@ -77,7 +60,27 @@ const CustomerRegister = () => {
           )}
 
           {/* Personal Information */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <User size={16} />
+                  Username *
+                </div>
+              </label>
+              <input
+                type="text"
+                className={`form-input ${errors.username ? 'error' : ''}`}
+                placeholder="Choose a username"
+                {...register('username', {
+                  required: 'Username is required',
+                  minLength: { value: 3, message: 'Username must be at least 3 characters' }
+                })}
+              />
+              {errors.username && (
+                <div className="text-error">{errors.username.message}</div>
+              )}
+            </div>
             <div className="form-group">
               <label className="form-label">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -237,107 +240,7 @@ const CustomerRegister = () => {
             </div>
           </div>
 
-          {/* Business Information */}
-          <div style={{ margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid var(--gray-200)' }}>
-            <h3 style={{ color: 'var(--gray-700)', marginBottom: '16px' }}>Business Information</h3>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShoppingBag size={16} />
-                Business Name *
-              </div>
-            </label>
-            <input
-              type="text"
-              className={`form-input ${errors.business_name ? 'error' : ''}`}
-              placeholder="e.g., Mary's Vegetable Stand"
-              {...register('business_name', {
-                required: 'Business name is required'
-              })}
-            />
-            {errors.business_name && (
-              <div className="text-error">{errors.business_name.message}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Business Type *</label>
-            <select
-              className={`form-select ${errors.business_type ? 'error' : ''}`}
-              {...register('business_type', {
-                required: 'Please select a business type'
-              })}
-            >
-              <option value="">Select business type</option>
-              <option value="mama_mboga">Mama Mboga (Vegetables/Fruits)</option>
-              <option value="general_store">General Store</option>
-              <option value="restaurant">Restaurant/Food</option>
-              <option value="salon">Beauty Salon/Barbershop</option>
-              <option value="tailoring">Tailoring/Fashion</option>
-              <option value="electronics">Electronics</option>
-              <option value="transport">Transport</option>
-              <option value="agriculture">Agriculture</option>
-              <option value="other">Other</option>
-            </select>
-            {errors.business_type && (
-              <div className="text-error">{errors.business_type.message}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <MapPin size={16} />
-                Business Location *
-              </div>
-            </label>
-            <input
-              type="text"
-              className={`form-input ${errors.location ? 'error' : ''}`}
-              placeholder="e.g., Kawangware Market, Nairobi"
-              {...register('location', {
-                required: 'Business location is required'
-              })}
-            />
-            {errors.location && (
-              <div className="text-error">{errors.location.message}</div>
-            )}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Business Description</label>
-            <textarea
-              className="form-input form-textarea"
-              placeholder="Describe what you sell and your business activities..."
-              rows={3}
-              {...register('business_description')}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Banknote size={16} />
-                Average Monthly Income (KSH) *
-              </div>
-            </label>
-            <input
-              type="number"
-              className={`form-input ${errors.average_income ? 'error' : ''}`}
-              placeholder="20000"
-              min="0"
-              step="1000"
-              {...register('average_income', {
-                required: 'Average income is required',
-                min: { value: 1000, message: 'Income must be at least KSH 1,000' }
-              })}
-            />
-            {errors.average_income && (
-              <div className="text-error">{errors.average_income.message}</div>
-            )}
-          </div>
+         
 
           {/* Password Section */}
           <div style={{ margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid var(--gray-200)' }}>
@@ -400,30 +303,11 @@ const CustomerRegister = () => {
             )}
           </div>
 
-          {/* Document Upload */}
-          <div style={{ margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid var(--gray-200)' }}>
-            <h3 style={{ color: 'var(--gray-700)', marginBottom: '16px' }}>Documents (Optional)</h3>
-          </div>
-
-          <FileUpload
-            label="National ID Photo"
-            acceptedTypes=".jpg,.jpeg,.png,.pdf"
-            maxSize={5}
-            onFileSelect={(file) => handleDocumentUpload('id_document', file)}
-            existingFile={uploadedDocuments.id_document}
-          />
-
-          <FileUpload
-            label="Business Permit"
-            acceptedTypes=".pdf,.jpg,.jpeg,.png"
-            maxSize={5}
-            onFileSelect={(file) => handleDocumentUpload('business_permit', file)}
-            existingFile={uploadedDocuments.business_permit}
-          />
+  
 
           <button
             type="submit"
-            disabled={isLoading || !uploadedDocuments.id_document || !uploadedDocuments.business_permit}
+            disabled={isLoading}
             className="btn btn-primary w-full"
             style={{ marginTop: '24px' }}
           >

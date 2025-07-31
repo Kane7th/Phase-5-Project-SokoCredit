@@ -1,161 +1,169 @@
+from datetime import datetime, timedelta
+import random
 from app import create_app
 from app.extensions import db
-from app.models import User, Customer, Loan, Repayment, LoanProduct, RepaymentSchedule, Notification
-from datetime import datetime, timedelta, timezone
-import random
+from app.models import User, LoanProduct, Loan, RepaymentSchedule, Repayment
+from app.models.loan import LoanStatus
+from app.models.repaymentSchedule import RepaymentStatus
+from app.models.loan_products import RepaymentFrequencies
+from utils.loan_status import update_loan_status
 
 app = create_app()
 
 with app.app_context():
-    print("\n🧹 Clearing previous data...\n")
+    db.drop_all()
+    db.create_all()
 
-    Repayment.query.delete()
-    RepaymentSchedule.query.delete()
-    Loan.query.delete()
-    LoanProduct.query.delete()
-    Customer.query.delete()
-    Notification.query.delete()
-    User.query.delete()
+    # USERS
+    admin = User(first_name='System', last_name='Admin', phone='0700000000', username="admin", email="admin@example.com", role="admin")
+    admin.set_password("adminpass")
+
+    lender1 = User(first_name='Lenny', last_name='Sang', phone='0701111111', username="lender1", email="lender1@example.com", role="lender")
+    lender1.set_password("lenderpass")
+    lender2 = User(first_name='Sharon', last_name='Kim', phone='0701111112', username="lender2", email="lender2@exampl.com", role="lender")
+    lender2.set_password("lenderpass1")
+    lender3 = User(first_name='Denise', last_name='Okoth', phone='0701111113', username="lender3", email="lender3@examp.com", role="lender")
+    lender3.set_password("lenderpass2")
+
+    customer1 = User(first_name='Mary', last_name='Njeri', phone='0702222222', username="mama_mary", email="mary@example.com", role="customer")
+    customer1.set_password("marypass")
+    customer2 = User(first_name='Jane', last_name='Wambui', phone='0703333334', username="mama_wambui", email="mw@example.com", role="customer")
+    customer2.set_password("janepass")
+    customer3 = User(first_name='Tommy', last_name='Wambua', phone='0703333335', username="wambua", email="tw@example.com", role="customer")
+    customer3.set_password("tomPass")
+
+    db.session.add_all([admin, lender1, lender2, lender3, customer1, customer2, customer3])
     db.session.commit()
 
-    print("✅ Cleared Repayments, Schedules, Loans, Customers, Notifications, and Users.\n")
+    # LOAN PRODUCTS
+    product1 = LoanProduct(
+        name="Biashara Boost", interest_rate=10,
+        description="For growing small businesses",
+        duration_months=6, max_amount=50000,
+        frequency=RepaymentFrequencies.monthly,
+        lender_id=lender1.id
+    )
+    product2 = LoanProduct(
+        name="MamaFund", interest_rate=5,
+        description="Support for women entrepreneurs",
+        duration_months=3, max_amount=20000,
+        frequency=RepaymentFrequencies.weekly,
+        lender_id=lender2.id
+    )
+    product3 = LoanProduct(
+        name="Personal Emergency", interest_rate=8.0,
+        description="Quick emergency loans", 
+        duration_months=4, max_amount=50000,
+        frequency=RepaymentFrequencies.monthly,
+        lender_id=lender3.id
+    )
 
-    print("👤 Seeding users...")
-
-    users = [
-        User(username="Admin", phone="0700000001", email="admin@sokocredit.com", role="admin"),
-        User(username="Lender One", phone="0700000002", email="lender1@sokocredit.com", role="lender"),
-        User(username="Lender Two", phone="0700000004", email="lender2@sokocredit.com", role="lender"),
-        User(username="Mama Mboga One", phone="0700000003", email="mama1@sokocredit.com", role="mama_mboga"),
-        User(username="Mama Mboga Two", phone="0700000005", email="mama2@sokocredit.com", role="mama_mboga")
-    ]
-    for u in users:
-        u.set_password("password")
-        db.session.add(u)
+    db.session.add_all([product1, product2, product3])
     db.session.commit()
 
-    print("✅ Users created. (Default password: 'password')\n")
-
-    print("📬 Seeding notifications...")
-    def generate_notifications(user):
-        messages = [
-            f"📢 Welcome {user.username} to SokoCredit!",
-            "✅ Your account has been verified.",
-            "📨 New loan request received.",
-            "💡 Tip: Build your profile to get better loans.",
-        ]
-        for msg in messages:
-            n = Notification(
-                user_id=user.id,
-                message=msg,
-                read=random.choice([True, False]),
-                created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 10))
-            )
-            db.session.add(n)
-    for user in users:
-        generate_notifications(user)
-    db.session.commit()
-
-    print("✅ Notifications seeded.\n")
-
-    print("👩🏾 Seeding customer profiles...")
-
-    customers = [
-        Customer(
-            full_name='Fatuma Hassan',
-            phone='0712345678',
-            location='Gikomba, Nairobi',
-            business_name='Fatuma Veggies',
-            documents={"id_card": "id_doc1.jpg", "shop_photo": "shop1.jpg"},
-            created_by=users[3].id
+    # LOANS
+    loans = [
+        Loan(
+            amount=15000,
+            interest_rate=product1.interest_rate,
+            duration_months=3,
+            status=LoanStatus.disbursed,
+            approved_date=datetime.now() - timedelta(days=110),
+            disbursed_date=datetime.now() - timedelta(days=100),
+            issued_date=datetime.now() - timedelta(days=100),
+            customer_id=customer1.id,
+            loan_product_id=product1.id,
+            lender_id=lender1.id
         ),
-        Customer(
-            full_name='Amina Yusuf',
-            phone='0722345678',
-            location='Kawangware, Nairobi',
-            business_name='Amina Fruits',
-            documents={"id_card": "id_doc2.jpg", "shop_photo": "shop2.jpg"},
-            created_by=users[4].id
-        )
-    ]
-    db.session.add_all(customers)
-    db.session.commit()
-
-    print("✅ Customers created.\n")
-
-    print("💼 Seeding loan products...")
-
-    loan_products = [
-        LoanProduct(
-            name='Starter Business Loan',
-            description='Supports small-scale vendors with fast loans.',
-            interest_rate=12.5,
-            duration_months=6,
-            max_amount=20000,
-            frequency='monthly',
+         Loan(
+            amount=3500,
+            interest_rate=product3.interest_rate,
+            duration_months=product3.duration_months,
+            status=LoanStatus.disbursed,
+            approved_date=datetime.now() - timedelta(days=110),
+            disbursed_date=datetime.now() - timedelta(days=100),
+            issued_date=datetime.now() - timedelta(days=100),
+            customer_id=customer3.id,
+            loan_product_id=product3.id,
+            lender_id=lender3.id
         ),
-        LoanProduct(
-            name='Growth Booster Loan',
-            description='Ideal for expanding businesses.',
-            interest_rate=10.0,
-            duration_months=12,
-            max_amount=50000,
-            frequency='monthly',
-        )
+        Loan(
+            amount=40000,
+            interest_rate=product2.interest_rate,
+            duration_months=product2.duration_months,
+            status=LoanStatus.completed,
+            approved_date=datetime.now() - timedelta(days=110),
+            disbursed_date=datetime.now() - timedelta(days=115),
+            issued_date=datetime.now() - timedelta(days=115),
+            customer_id=customer2.id,
+            loan_product_id=product2.id,
+            lender_id=lender2.id
+        ),
+        Loan(
+            amount=18000,
+            interest_rate=product3.interest_rate,
+            duration_months=product3.duration_months,
+            status=LoanStatus.pending,
+            customer_id=customer2.id,
+            loan_product_id=product3.id,
+            lender_id=lender3.id
+        ),
     ]
-    db.session.add_all(loan_products)
+
+    db.session.add_all(loans)
     db.session.commit()
 
-    print("✅ Loan products created.\n")
+    # REPAYMENT SCHEDULES & REPAYMENTS
+    for loan in loans:
+        if loan.status == LoanStatus.disbursed:
+            total_due = loan.amount * (1 + loan.interest_rate / 100)
+            
+            # consider payments can be weekly or monthly
+            if loan.loan_product.frequency == RepaymentFrequencies.weekly:
+                intervals = loan.duration_months * 4 
+            else:
+                intervals = loan.duration_months
+            monthly_due = total_due / intervals
 
-    print("💰 Seeding loans, repayment schedules and repayments...")
+            interval_gap_days = 7 if loan.loan_product.frequency == RepaymentFrequencies.weekly else 30
+            for i in range(int(intervals)):
+                due_date = loan.disbursed_date + timedelta(days=(i + 1) * interval_gap_days)
 
-    def seed_loan(borrower_user, customer_obj, loan_product, lender_user):
-        issued_date = datetime.now(timezone.utc) - timedelta(days=random.randint(0, 20))
-        loan = Loan(
-            borrower_id=borrower_user.id,
-            lender_id=lender_user.id,
-            amount=random.randint(10000, int(loan_product.max_amount)),
-            interest_rate=loan_product.interest_rate,
-            duration_months=loan_product.duration_months,
-            status=random.choice(['disbursed', 'approved']),
-            issued_date=issued_date,
-            approved_date=issued_date - timedelta(days=1),
-            disbursed_date=issued_date,
-            loan_product_id=loan_product.id
-        )
-        db.session.add(loan)
-        db.session.commit()
+                # Make loan[0] partially paid (simulate overdue)
+                if loan == loans[0]:
+                    behavior = "partial" if i == 0 else "unpaid"
+                else:
+                    behavior = random.choice(["paid", "partial", "unpaid"])
 
-        # Generate 3 repayment schedules per loan
-        schedules = []
-        for i in range(3):
-            due = issued_date + timedelta(days=30 * (i + 1))
-            schedules.append(RepaymentSchedule(
-                loan_id=loan.id,
-                due_date=due,
-                amount_due=round(loan.amount / 3, 2),
-                status=random.choice(['unpaid', 'partial', 'paid'])
-            ))
-        db.session.add_all(schedules)
-        db.session.commit()
+                status = {
+                    "paid": RepaymentStatus.PAID,
+                    "partial": RepaymentStatus.PARTIAL,
+                    "unpaid": RepaymentStatus.UNPAID
+                }[behavior]
 
-        # Generate 1-2 repayments per loan
-        for sched in schedules[:2]:
-            repayment = Repayment(
-                loan_id=loan.id,
-                user_id=borrower_user.id,
-                schedule_id=sched.id,
-                mpesa_code=f"MPESA{random.randint(100000,999999)}",
-                amount_paid=round(sched.amount_due * random.uniform(0.5, 1.0), 2),
-                paid_at=sched.due_date - timedelta(days=random.randint(0, 10))
-            )
-            db.session.add(repayment)
-        db.session.commit()
+                schedule = RepaymentSchedule(
+                    due_date=due_date,
+                    amount_due=monthly_due,
+                    loan_id=loan.id,
+                    status=status
+                )
+                db.session.add(schedule)
+                db.session.flush()
 
-    seed_loan(users[3], customers[0], loan_products[0], users[1])  # Mama Mboga One + Lender One
-    seed_loan(users[4], customers[1], loan_products[1], users[2])  # Mama Mboga Two + Lender Two
+                if behavior != "unpaid":
+                    amount_paid = monthly_due if behavior == "paid" else round(monthly_due * 0.5, 2)
+                    repayment = Repayment(
+                        amount_paid=amount_paid,
+                        customer_id=loan.customer_id,
+                        mpesa_code=f"MPESA{random.randint(10000, 99999)}",
+                        paid_at=due_date,
+                        loan_id=loan.id,
+                        schedule_id=schedule.id
+                    )
+                    db.session.add(repayment)
 
-    print("✅ Loans, schedules, and repayments seeded.\n")
+            # Apply loan status based on payments made
+            update_loan_status(loan)
 
-    print("🎉 All seed data added successfully.\n")
+    db.session.commit()
+    print("Seed completed using clean loan logic.")
