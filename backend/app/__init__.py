@@ -40,6 +40,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
     from app.models.notification import Notification
+    from app.routes.sms_test import sms_test_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(customers_bp, url_prefix='/api/customers')
@@ -52,6 +53,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
     app.register_blueprint(analytics_bp)
+    app.register_blueprint(sms_test_bp)
 
     # Import NotificationNamespace after socketio is ready
     from app.sockets.notifications_socket import NotificationNamespace
