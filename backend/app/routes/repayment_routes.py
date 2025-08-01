@@ -75,8 +75,8 @@ def make_repayment():
         db.session.flush()
 
         update_schedule_status(schedule_id)
-        update_loan_amount_paid(loan_id)
         update_loan_status(loan_id)
+        update_loan_amount_paid(loan_id)
         db.session.commit()
 
         return jsonify({
