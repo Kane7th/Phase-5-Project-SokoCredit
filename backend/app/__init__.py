@@ -37,6 +37,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.mpesa.test_mpesa_route import test_bp
     from app.routes.mpesa.views import mpesa_bp
     from app.routes.mpesa.callbacks import callback_bp
+    from app.routes.paypal.paypal_route import paypal_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
     from app.models.notification import Notification
@@ -49,6 +50,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(test_bp)
     app.register_blueprint(mpesa_bp)
     app.register_blueprint(callback_bp)
+    app.register_blueprint(paypal_bp)
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
     app.register_blueprint(analytics_bp)
