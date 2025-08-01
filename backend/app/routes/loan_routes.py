@@ -10,6 +10,7 @@ from app.models.loan_products import RepaymentFrequencies
 from app.models.repaymentSchedule import RepaymentStatus
 from utils.decorators import role_required
 from utils.repayment_status import generate_repayment_schedule
+from utils.sms_service import send_sms
 
 loan_bp = Blueprint('loan_bp', __name__, url_prefix='/loans')
 loan_product_bp = Blueprint('loan_product_bp', __name__, url_prefix='/loan-products')
@@ -19,7 +20,6 @@ def index():
     return jsonify({"message": "SokoCredit Loan running"})
 
 
-# CUSTOMER can apply for a loan
 @loan_bp.route('', methods=['POST'])
 @jwt_required()
 @role_required('customer')
@@ -70,6 +70,10 @@ def apply_loan():
             message=f"New loan application submitted by customer #{customer_id} for KES {amount}"
         )
 
+        lender = User.query.get(loan_product.lender_id)
+        if lender and lender.phone:
+            send_sms(lender.phone, f"SokoCredit: New loan application by customer #{customer_id} for KES {amount}.")
+
         return jsonify(new_loan.to_dict()), 201
 
     except SQLAlchemyError as e:
@@ -79,7 +83,6 @@ def apply_loan():
         return jsonify({'error': 'Unexpected error', 'details': str(e)}), 500
 
 
-# Users can view all loans
 @loan_bp.route('', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender', 'customer'])
@@ -112,7 +115,6 @@ def get_loans():
         return jsonify({'error': 'Unable to fetch requested loans', 'message': str(e)}), 500
 
 
-# A lender approves any applied loan
 @loan_bp.route('/<int:id>/approve', methods=['PATCH'])
 @jwt_required()
 @role_required(['admin', 'lender'])
@@ -137,6 +139,10 @@ def approve_loan(id):
             message=f"Your loan application #{loan.id} has been approved."
         )
 
+        customer = User.query.get(loan.customer_id)
+        if customer and customer.phone:
+            send_sms(customer.phone, f"SokoCredit: Your loan #{loan.id} has been approved!")
+
         return jsonify({
             'message': 'Loan approved',
             'loan': loan.to_dict(rules=('-borrower', '-lender', '-repayments', '-loan_product'))
@@ -147,7 +153,6 @@ def approve_loan(id):
         return jsonify({'error': 'Failed to approve the loan', 'message': str(e)}), 500
 
 
-# Lender can reject an applied loan
 @loan_bp.route('/<int:id>/reject', methods=['PATCH'])
 @jwt_required()
 @role_required(['admin', 'lender'])
@@ -175,6 +180,10 @@ def reject_loan(id):
             message=f"Your loan application #{loan.id} was rejected. Reason: {rejected_reason}"
         )
 
+        customer = User.query.get(loan.customer_id)
+        if customer and customer.phone:
+            send_sms(customer.phone, f"SokoCredit: Your loan #{loan.id} was rejected. Reason: {rejected_reason}")
+
         return jsonify(loan.to_dict()), 200
 
     except Exception as e:
@@ -182,7 +191,6 @@ def reject_loan(id):
         return jsonify({'error': 'Failed to reject loan application', 'message': str(e)}), 500
 
 
-# Lender/admin can disburse loans after approval
 @loan_bp.route('/<int:id>/disburse', methods=['PATCH'])
 @jwt_required()
 @role_required(['admin', 'lender'])
@@ -209,6 +217,10 @@ def disburse_loan(id):
             message=f"Your loan #{loan.id} has been disbursed. Check your account for details."
         )
 
+        customer = User.query.get(loan.customer_id)
+        if customer and customer.phone:
+            send_sms(customer.phone, f"SokoCredit: Your loan #{loan.id} has been disbursed. Start repaying on time.")
+
         return jsonify({
             'message': 'Loan disbursed and repayment schedule created',
             'loan': loan.to_dict(rules=(
@@ -224,7 +236,6 @@ def disburse_loan(id):
         return jsonify({'error': 'Failed to disburse the loan', 'message': str(e)}), 500
 
 
-# mark a loan as complete after all repayments
 @loan_bp.route('/<int:id>/complete', methods=['PATCH'])
 @jwt_required()
 @role_required('lender')
@@ -244,5 +255,9 @@ def complete_loan(id):
         user_id=loan.customer_id,
         message=f"Congratulations! Your loan #{loan.id} has been fully repaid and marked as complete."
     )
+
+    customer = User.query.get(loan.customer_id)
+    if customer and customer.phone:
+        send_sms(customer.phone, f"SokoCredit: Loan #{loan.id} fully repaid. You're now debt free. 🎉")
 
     return jsonify({'message': 'Loan marked as complete'}), 200
