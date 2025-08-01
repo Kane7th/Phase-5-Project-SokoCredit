@@ -263,39 +263,12 @@ def approve_loan(id):
 
         loan.status = LoanStatus.approved
         loan.approved_date = datetime.utcnow()
-
-        # Upon approval, schedule a repayment
-        today = datetime.utcnow()
-        frequency = loan.loan_product.frequency
-        duration = loan.duration_months
-        repayment_count = {
-            RepaymentFrequencies.monthly: int(duration),
-            RepaymentFrequencies.weekly: int(duration) * 4
-        }.get(frequency, 1)
-
-        amount_per = round(loan.amount / repayment_count, 2)
-        interval = timedelta(weeks=1) if frequency == RepaymentFrequencies.weekly else timedelta(days=30)
-
-        for i in range(repayment_count):
-            due_date=today + (interval * i)
-            schedule = RepaymentSchedule(
-                loan_id=loan.id,
-                amount_due=amount_per,
-                due_date=due_date,
-                status=RepaymentStatus.UNPAID
-            )
-            db.session.add(schedule)
-
         db.session.commit()
 
         return jsonify({
             'message': 'Loan approved and repayment schedule created',
             'loan': loan.to_dict(rules=(
-                '-borrower', '-lender', '-repayments', '-loan_product',
-                'repayment_schedules.id',
-                'repayment_schedules.due_date',
-                'repayment_schedules.amount_due',
-                'repayment_schedules.status'
+                '-borrower', '-lender', '-repayments', '-loan_product'
             ))
         }), 200
 
@@ -352,9 +325,23 @@ def disburse_loan(id):
 
         loan.status = LoanStatus.disbursed
         loan.issued_date = datetime.utcnow()
-
+        
+        # Generate repayment schedule based on loan product terms
+        from utils.repayment_status import generate_repayment_schedule
+        schedules = generate_repayment_schedule(loan)
+        for schedule in schedules:
+            db.session.add(schedule)
         db.session.commit()
-        return jsonify(loan.to_dict()), 200
+        return jsonify({
+            'message': 'Loan disbursed and repayment schedule created',
+            'loan': loan.to_dict(rules=(
+                '-repayments', '-lender', '-borrower', '-loan_product',
+                'repayment_schedules.id',
+                'repayment_schedules.due_date',
+                'repayment_schedules.amount_due',
+                'repayment_schedules.status'
+            ))
+        }), 200
 
     except Exception as e:
         return jsonify({'error': 'Failed to disburse the loan', 'message': str(e)}), 500
