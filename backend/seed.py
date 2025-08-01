@@ -5,6 +5,7 @@ from app.extensions import db
 from app.models import User, LoanProduct, Loan, RepaymentSchedule, Repayment
 from app.models.loan import LoanStatus
 from app.models.repaymentSchedule import RepaymentStatus
+from app.models.repayment import PaymentMethod
 from app.models.loan_products import RepaymentFrequencies
 from utils.loan_status import update_loan_status
 
@@ -155,10 +156,11 @@ with app.app_context():
                     repayment = Repayment(
                         amount_paid=amount_paid,
                         customer_id=loan.customer_id,
-                        mpesa_code=f"MPESA{random.randint(10000, 99999)}",
+                        reference_code=f"cash{random.randint(10000, 99999)}",
                         paid_at=due_date,
                         loan_id=loan.id,
-                        schedule_id=schedule.id
+                        schedule_id=schedule.id,
+                        payment_method=PaymentMethod.CASH
                     )
                     db.session.add(repayment)
 
