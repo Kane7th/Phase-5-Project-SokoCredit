@@ -25,7 +25,7 @@ def update_schedule_status(schedule_id):
         schedule.status = RepaymentStatus.PAID
     
     db.session.add(schedule)
-    db.session.commit()
+    # db.session.commit()
     return schedule.status
 
 def generate_repayment_schedule(loan):
