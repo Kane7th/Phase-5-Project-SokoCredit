@@ -7,7 +7,12 @@ from app.models.loan import LoanStatus
 from datetime import timedelta
 from datetime import datetime
 
-def update_schedule_status(schedule: RepaymentSchedule):
+def update_schedule_status(schedule_id):
+    
+    schedule = RepaymentSchedule.query.get(schedule_id)
+    if not schedule:
+        raise ValueError(f"RepaymentSchedule with id {schedule_id} not found.")
+
     total_paid = sum(r.amount_paid for r in schedule.repayments)
 
     due = schedule.amount_due
@@ -18,6 +23,10 @@ def update_schedule_status(schedule: RepaymentSchedule):
         schedule.status = RepaymentStatus.PARTIAL
     else:
         schedule.status = RepaymentStatus.PAID
+    
+    db.session.add(schedule)
+    db.session.commit()
+    return schedule.status
 
 def generate_repayment_schedule(loan):
     

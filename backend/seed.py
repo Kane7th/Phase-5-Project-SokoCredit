@@ -7,7 +7,7 @@ from app.models.loan import LoanStatus
 from app.models.repaymentSchedule import RepaymentStatus
 from app.models.repayment import PaymentMethod
 from app.models.loan_products import RepaymentFrequencies
-from utils.loan_status import update_loan_status
+from utils.loan_status import update_loan_status, update_loan_amount_paid
 
 app = create_app()
 
@@ -163,9 +163,11 @@ with app.app_context():
                         payment_method=PaymentMethod.CASH
                     )
                     db.session.add(repayment)
+                    db.session.flush()
 
             # Apply loan status based on payments made
-            update_loan_status(loan)
+            update_loan_status(loan.id)
+            update_loan_amount_paid(loan.id)
 
     db.session.commit()
     print("Seed completed using clean loan logic.")

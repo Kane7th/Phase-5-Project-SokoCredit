@@ -2,14 +2,14 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from utils.decorators import role_required
-from utils.loan_status import update_loan_status
+from utils.loan_status import update_loan_status, update_loan_amount_paid
 from utils.repayment_status import update_schedule_status, generate_repayment_schedule
 from app.extensions import db
 from app.models import RepaymentSchedule, Loan, Repayment, LoanProduct
 from app.models.repaymentSchedule import RepaymentStatus
+from app.models.repayment import PaymentMethod
 
 repayment_bp = Blueprint('repayment_bp', __name__, url_prefix='/repayments')
-repayment_schedule_bp = Blueprint('repayment_schedule_bp', __name__, url_prefix='/repayment-schedules')
 
 # Repayment creation
 @repayment_bp.route('', methods=['POST'])
@@ -22,11 +22,11 @@ def make_repayment():
         loan_id = data.get("loan_id")
         schedule_id = data.get("schedule_id")
         amount_paid = data.get("amount_paid")
-        payment_method = data.get("payment_method", "").strip().lower()
+        payment_methodtype = data.get("payment_method", "").strip().lower()
         reference_code = data.get("reference_code", "").strip()  # Optional
 
         # Validate required fields
-        if not all([loan_id, schedule_id, amount_paid, payment_method]):
+        if not all([loan_id, schedule_id, amount_paid, payment_methodtype]):
             return jsonify({"error": "Missing required fields."}), 400
 
         try:
@@ -36,9 +36,11 @@ def make_repayment():
         except ValueError:
             return jsonify({"error": "Amount must be a valid number."}), 400
 
-        valid_methods = ["cash", "paypal", "mpesa"]
-        if payment_method not in valid_methods:
-            return jsonify({"error": f"Invalid payment method. Use one of {valid_methods}."}), 400
+       # Validate and convert payment method
+        try:
+            payment_method = PaymentMethod(payment_methodtype)
+        except ValueError:
+            return jsonify({"error": "Invalid payment method"}), 400
 
         # Check duplicate reference code
         if reference_code:
@@ -70,10 +72,11 @@ def make_repayment():
             paypal_txn_id=reference_code if payment_method == 'paypal' else None,
         )
         db.session.add(repayment)
+        db.session.flush()
 
         update_schedule_status(schedule_id)
+        update_loan_amount_paid(loan_id)
         update_loan_status(loan_id)
-
         db.session.commit()
 
         return jsonify({
