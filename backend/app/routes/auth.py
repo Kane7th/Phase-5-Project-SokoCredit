@@ -5,6 +5,8 @@ from flask_jwt_extended import (
 )
 from app.extensions import db
 from app.models.user import User
+from app.models.notification import Notification
+from app import socketio
 from utils.decorators import role_required
 
 auth_bp = Blueprint('auth', __name__)
@@ -91,6 +93,18 @@ def register_user():
     print(f"[AUDIT LOG] Registered user {user.id} ({role})")
 
     if role == "customer":
+        # 🔔 Notify all admins and lenders about the new customer
+        message = f"👤 New customer registered: {first_name} {last_name}"
+        admin_lender_users = User.query.filter(User.role.in_(["admin", "lender"])).all()
+
+        for recipient in admin_lender_users:
+            notif = Notification.create_notification(recipient.id, message)
+            socketio.emit(
+                f"notification:{recipient.id}",
+                notif.to_dict(),
+                namespace="/notifications"
+            )
+
         return jsonify({
             "msg": "Customer registered. Please complete your customer profile.",
             "user_id": user.id,
