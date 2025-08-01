@@ -15,6 +15,8 @@ with app.app_context():
     db.drop_all()
     db.create_all()
 
+    print("🧹 Database dropped and recreated.\n")
+
     # USERS
     admin = User(first_name='System', last_name='Admin', phone='0700000000', username="admin", email="admin@example.com", role="admin")
     admin.set_password("adminpass")
@@ -35,6 +37,22 @@ with app.app_context():
 
     db.session.add_all([admin, lender1, lender2, lender3, customer1, customer2, customer3])
     db.session.commit()
+
+    print("👤 Users created:")
+    users = [admin, lender1, lender2, lender3, customer1, customer2, customer3]
+    for u in users:
+        credentials = {
+            "admin": "adminpass",
+            "lender1": "lenderpass",
+            "lender2": "lenderpass1",
+            "lender3": "lenderpass2",
+            "mama_mary": "marypass",
+            "mama_wambui": "janepass",
+            "wambua": "tomPass"
+        }
+
+        for u in users:
+            print(f"   - {u.role.title()}: {u.username} / {u.email} / password: '{credentials.get(u.username)}'")
 
     # LOAN PRODUCTS
     product1 = LoanProduct(
@@ -61,6 +79,10 @@ with app.app_context():
 
     db.session.add_all([product1, product2, product3])
     db.session.commit()
+
+    print("\n💳 Loan Products created:")
+    for p in [product1, product2, product3]:
+        print(f"   - {p.name} ({p.frequency}) by Lender ID {p.lender_id}")
 
     # LOANS
     loans = [
@@ -114,14 +136,19 @@ with app.app_context():
     db.session.add_all(loans)
     db.session.commit()
 
-    # REPAYMENT SCHEDULES & REPAYMENTS
+    print("\n📄 Loans created:")
+    for i, loan in enumerate(loans):
+        print(f"   - Loan #{i+1}: {loan.amount} to Customer ID {loan.customer_id} — Status: {loan.status}")
+
+    # REPAYMENTS
+    total_schedules = 0
+    total_repayments = 0
     for loan in loans:
         if loan.status == LoanStatus.disbursed:
             total_due = loan.amount * (1 + loan.interest_rate / 100)
-            
-            # consider payments can be weekly or monthly
+
             if loan.loan_product.frequency == RepaymentFrequencies.weekly:
-                intervals = loan.duration_months * 4 
+                intervals = loan.duration_months * 4
             else:
                 intervals = loan.duration_months
             monthly_due = total_due / intervals
@@ -130,12 +157,7 @@ with app.app_context():
             for i in range(int(intervals)):
                 due_date = loan.disbursed_date + timedelta(days=(i + 1) * interval_gap_days)
 
-                # Make loan[0] partially paid (simulate overdue)
-                if loan == loans[0]:
-                    behavior = "partial" if i == 0 else "unpaid"
-                else:
-                    behavior = random.choice(["paid", "partial", "unpaid"])
-
+                behavior = "partial" if (loan == loans[0] and i == 0) else "unpaid" if loan == loans[0] else random.choice(["paid", "partial", "unpaid"])
                 status = {
                     "paid": RepaymentStatus.PAID,
                     "partial": RepaymentStatus.PARTIAL,
@@ -150,6 +172,7 @@ with app.app_context():
                 )
                 db.session.add(schedule)
                 db.session.flush()
+                total_schedules += 1
 
                 if behavior != "unpaid":
                     amount_paid = monthly_due if behavior == "paid" else round(monthly_due * 0.5, 2)
@@ -163,11 +186,13 @@ with app.app_context():
                         payment_method=PaymentMethod.CASH
                     )
                     db.session.add(repayment)
-                    db.session.flush()
+                    total_repayments += 1
 
-            # Apply loan status based on payments made
             update_loan_status(loan.id)
             update_loan_amount_paid(loan.id)
 
     db.session.commit()
-    print("Seed completed using clean loan logic.")
+
+    print(f"\n📆 Repayment Schedules Created: {total_schedules}")
+    print(f"💰 Repayments Created: {total_repayments}")
+    print("\n✅ Seeding complete with clean loan logic.\n")
