@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import api from '../../services/api'
 import { 
   TrendingUp, 
   DollarSign, 
@@ -40,21 +41,10 @@ const AnalyticsDashboard = () => {
     setIsLoading(true)
     setError(null)
     try {
-      const overviewRes = await fetch('/api/analytics/overview')
-      if (!overviewRes.ok) throw new Error('Failed to fetch overview data')
-      const overview = await overviewRes.json()
-
-      const performanceRes = await fetch('/api/analytics/performance')
-      if (!performanceRes.ok) throw new Error('Failed to fetch performance data')
-      const performance = await performanceRes.json()
-
-      const customersRes = await fetch('/api/analytics/customers')
-      if (!customersRes.ok) throw new Error('Failed to fetch customer analytics')
-      const customers = await customersRes.json()
-
-      const riskRes = await fetch('/api/analytics/risk')
-      if (!riskRes.ok) throw new Error('Failed to fetch risk analysis')
-      const risk = await riskRes.json()
+      const overview = await api.get('/api/analytics/overview')
+      const performance = await api.get('/api/analytics/performance')
+      const customers = await api.get('/api/analytics/customers')
+      const risk = await api.get('/api/analytics/risk')
 
       setAnalyticsData({
         overview,
@@ -223,7 +213,7 @@ const AnalyticsDashboard = () => {
                 </select>
               </div>
             </div>
-            <PortfolioChart data={performance.disbursed} />
+            <PortofolioChart data={performance.disbursed} />
           </div>
 
           <div className="chart-container">
@@ -272,7 +262,7 @@ const AnalyticsDashboard = () => {
             <div className="chart-header">
               <h3>Customer Segmentation</h3>
             </div>
-            <CustomerSegmentation data={customers} />
+            <CustomerSegmntation data={customers} />
           </div>
         </div>
       </div>
@@ -446,7 +436,13 @@ const AnalyticsDashboard = () => {
         {activeView === 'customers' && (
           <>
             <div className="customer-analytics">
-              <CustomerSegmentation data={analyticsData.customers} />
+              {analyticsData.customers && analyticsData.customers.segments && analyticsData.customers.segments.length > 0 ? (
+                <CustomerSegmntation data={analyticsData.customers} selectedPeriod={selectedPeriod} />
+              ) : (
+                <div className="empty-state">
+                  <p>No customers data available.</p>
+                </div>
+              )}
             </div>
           </>
         )}
