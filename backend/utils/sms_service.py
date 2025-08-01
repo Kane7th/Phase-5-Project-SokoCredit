@@ -2,7 +2,7 @@ import africastalking
 import os
 
 # Load credentials from environment or config
-USERNAME = os.getenv("AFRICASTALKING_USERNAME", "sandbox")  # Replace with your live username in prod
+USERNAME = os.getenv("AFRICASTALKING_USERNAME", "sandbox")  
 API_KEY = os.getenv("AFRICASTALKING_API_KEY", "UutAHtWDL") 
 
 # Initialize SDK
@@ -16,4 +16,4 @@ def send_sms(phone_number: str, message: str) -> dict:
         response = sms.send(message, [phone_number])
         return {"success": True, "response": response}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "Failed to send SMS": str(e)}
