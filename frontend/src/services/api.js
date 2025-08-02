@@ -3,14 +3,16 @@ import { store } from '../store'
 import { logout } from '../store/authSlice'
 import toast from 'react-hot-toast'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000')
 
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  withCredentials: true,
+  // Remove default Content-Type header to allow axios to set it automatically
+  // headers: {
+  //   'Content-Type': 'application/json',
+  // },
 })
 
 // Request interceptor to add token
