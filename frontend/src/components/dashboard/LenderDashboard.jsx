@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { analyticsService } from '../../services/analyticsService'
 import { customerService } from '../../services/customerService'
+import { getLenderLoans } from '../../services/loanService'
 
 const LenderDashboard = () => {
   const { user } = useSelector((state) => state.auth)
@@ -32,16 +33,19 @@ const LenderDashboard = () => {
   const [recentCustomers, setRecentCustomers] = useState([])
   const [todayTasks, setTodayTasks] = useState([])
   const [lenderCustomers, setLenderCustomers] = useState([])
+  const [lenderLoans, setLenderLoans] = useState([])
 
   useEffect(() => {
     const handleTabChange = (e) => {
-      setActiveTab(e.detail)
+      if (e.detail !== activeTab) {
+        setActiveTab(e.detail)
+      }
     }
     window.addEventListener('lenderTabChange', handleTabChange)
     return () => {
       window.removeEventListener('lenderTabChange', handleTabChange)
     }
-  }, [])
+  }, [activeTab])
 
   useEffect(() => {
     fetchDashboardData()
@@ -50,6 +54,8 @@ const LenderDashboard = () => {
   useEffect(() => {
     if (activeTab === 'customers') {
       fetchLenderCustomers()
+    } else if (activeTab === 'loans') {
+      fetchLenderLoans()
     }
   }, [activeTab])
 
@@ -79,7 +85,7 @@ const LenderDashboard = () => {
 
   const fetchLenderCustomers = async () => {
     try {
-      const response = await customerService.getMyCustomers()
+      const response = await customerService.getLenderCustomers(user.id)
       setLenderCustomers(response)
     } catch (error) {
       console.error('Failed to fetch lender customers:', error)
@@ -97,6 +103,15 @@ const LenderDashboard = () => {
       other: '🏢'
     }
     return icons[type] || '🏢'
+  }
+
+  const fetchLenderLoans = async () => {
+    try {
+      const response = await getLenderLoans(user.id)
+      setLenderLoans(response)
+    } catch (error) {
+      console.error('Failed to fetch lender loans:', error)
+    }
   }
 
   const StatCard = ({ title, value, icon: Icon, color, change, subtitle }) => (
@@ -356,7 +371,21 @@ const LenderDashboard = () => {
               <h3 className="heading-3">Loan Management</h3>
             </div>
             <div className="card-body">
-              <p>Loan management interface will be implemented here...</p>
+              {lenderLoans.length === 0 ? (
+                <p>No loans found.</p>
+              ) : (
+                <div className="loan-list">
+                  {lenderLoans.map((loan) => (
+                    <div key={loan.id} className="loan-item">
+                      <h4>Loan #{loan.id}</h4>
+                      <p>Amount: KSH {loan.amount.toLocaleString()}</p>
+                      <p>Status: {loan.status}</p>
+                      <p>Customer ID: {loan.customer_id}</p>
+                      <p>Issued Date: {loan.issued_date ? new Date(loan.issued_date).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
