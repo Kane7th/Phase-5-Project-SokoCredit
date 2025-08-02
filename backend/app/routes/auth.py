@@ -91,9 +91,22 @@ def register_user():
     print(f"[AUDIT LOG] Registered user {user.id} ({role})")
 
     if role == "customer":
+        # Create customer profile automatically
+        from app.models.customer import Customer
+        customer = Customer(
+            full_name=f"{first_name} {last_name}",
+            phone=phone,
+            email=email,
+            customer_user_id=user.id,
+            created_by=user.id
+        )
+        db.session.add(customer)
+        db.session.commit()
+
         return jsonify({
-            "msg": "Customer registered. Please complete your customer profile.",
+            "msg": "Customer registered and profile created.",
             "user_id": user.id,
+            "customer_id": customer.id,
             "next": "/customers/"
         }), 201
 
