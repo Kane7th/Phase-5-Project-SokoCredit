@@ -9,10 +9,12 @@ from app.models import RepaymentSchedule, Loan, Repayment, LoanProduct
 from app.models.repaymentSchedule import RepaymentStatus
 from app.models.repayment import PaymentMethod
 
-repayment_bp = Blueprint('repayment_bp', __name__, url_prefix='/repayments')
+from flask_cors import cross_origin
+repayment_bp = Blueprint('repayment_bp', __name__, url_prefix='/api/repayments')
 
 # Repayment creation
 @repayment_bp.route('', methods=['POST'])
+@cross_origin()
 @jwt_required()
 @role_required('customer')
 def make_repayment():
@@ -91,6 +93,7 @@ def make_repayment():
 
 # Customer GET all scheduled payments
 @repayment_bp.route('/schedules', methods=['GET'])
+@cross_origin()
 @jwt_required()
 @role_required('customer')
 def view_my_schedules():
@@ -121,6 +124,7 @@ def view_my_schedules():
 
 # All users can see repayments (filtered)
 @repayment_bp.route('', methods=['GET'])
+@cross_origin()
 @jwt_required()
 @role_required(['customer', 'lender', 'admin'])
 def view_loan_repayments():
@@ -164,3 +168,13 @@ def view_loan_repayments():
     except Exception as e:
         return jsonify({'error': 'Failed to fetch repayments', 'message': str(e)}), 500
 
+# CORS preflight OPTIONS route
+@repayment_bp.route('', methods=['OPTIONS'])
+@cross_origin()
+def repayments_options():
+    return '', 204
+
+@repayment_bp.route('/schedules', methods=['OPTIONS'])
+@cross_origin()
+def schedules_options():
+    return '', 204

@@ -7,13 +7,14 @@ from app.extensions import db
 from app.models.repaymentSchedule import RepaymentSchedule, RepaymentStatus
 from app.models.repayment import PaymentMethod
 from datetime import datetime
-import os
 import requests
 
-paypal_bp = Blueprint('paypal_bp', __name__, url_prefix='/paypal')
+from flask_cors import cross_origin
+paypal_bp = Blueprint('paypal_bp', __name__, url_prefix='/api/paypal')
 PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com"
 
 @paypal_bp.route('/create-order', methods=['POST'])
+@cross_origin()
 @jwt_required()
 @role_required('customer')
 def create_paypal_order():
@@ -75,6 +76,7 @@ def create_paypal_order():
 
 
 @paypal_bp.route('/capture-order', methods=['POST'])
+@cross_origin()
 @jwt_required()
 @role_required('customer')
 def capture_paypal_order():
@@ -165,10 +167,22 @@ def capture_paypal_order():
         return jsonify({"error": "An error occurred", "message": str(e)}), 500
 
 @paypal_bp.route('/return', methods=['GET'])
+@cross_origin()
 def paypal_return():
     return "<h3>Payment approved. You may now return to the app and confirm the payment.</h3>", 200
 
 @paypal_bp.route('/cancel', methods=['GET'])
+@cross_origin()
 def paypal_cancel():
     return "<h3>Payment was cancelled. No charges were made.</h3>", 200
 
+# OPTIONS Preflight Handlers
+@paypal_bp.route('/create-order', methods=['OPTIONS'])
+@cross_origin()
+def paypal_create_options():
+    return '', 204
+
+@paypal_bp.route('/capture-order', methods=['OPTIONS'])
+@cross_origin()
+def paypal_capture_options():
+    return '', 204
