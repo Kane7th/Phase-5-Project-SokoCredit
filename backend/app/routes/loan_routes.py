@@ -10,8 +10,10 @@ from app.models.loan_products import RepaymentFrequencies
 from app.models.repaymentSchedule import RepaymentStatus
 from utils.decorators import role_required
 
-loan_bp = Blueprint('loan_bp', __name__, url_prefix='/loans')
-loan_product_bp = Blueprint('loan_product_bp', __name__, url_prefix='/loan-products')
+from flask_cors import cross_origin
+
+loan_bp = Blueprint('loan_bp', __name__, url_prefix='/api/loans')
+loan_product_bp = Blueprint('loan_product_bp', __name__, url_prefix='/api/loan-products')
 
 @loan_bp.route('/')
 def index():
@@ -20,9 +22,11 @@ def index():
 
 # CUSTOMER can apply for a loan
 @loan_bp.route('', methods=['POST'])
+@cross_origin()
 @jwt_required()
 @role_required('customer')
 def apply_loan():
+    import traceback
     try:
         data = request.get_json()
         product_id = data.get('loan_product_id')
@@ -70,19 +74,26 @@ def apply_loan():
 
     except SQLAlchemyError as e:
         db.session.rollback()
+        print("apply_loan: database error")
+        traceback.print_exc()
         return jsonify({'error': 'Database error', 'details': str(e)}), 500
     except Exception as e:
+        print("apply_loan: unexpected error")
+        traceback.print_exc()
         return jsonify({'error': 'Unexpected error', 'details': str(e)}), 500
-
 
 # Users can view all loans
 @loan_bp.route('', methods=['GET'])
+@cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender', 'customer'])
 def get_loans():
     try:
         user_id = int(get_jwt_identity().split(':')[0])
         user = User.query.get(user_id)
+
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
 
         if user.role == 'admin':
             loans = Loan.query.all()
@@ -91,25 +102,17 @@ def get_loans():
         elif user.role == 'customer':
             loans = Loan.query.filter_by(customer_id=user.id).all()
 
-        return jsonify([
-            {
-                "id": loan.id,
-                "amount": loan.amount,
-                "status": loan.status.value,
-                "customer_id": loan.customer_id,
-                "lender_id": loan.lender_id,
-                "loan_product": loan.loan_product.name if loan.loan_product else None
-            }
-            for loan in loans
-        ]), 200
-
+        return jsonify([loan.to_dict() for loan in loans]), 200
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
         return jsonify({'error': 'Unable to fetch requested loans', 'message': str(e)}), 500
 
 
 # GET all loan products (any user can view)
 @loan_product_bp.route('', methods=['GET'])
+@cross_origin()
 @jwt_required()
 def get_loan_products():
     products = LoanProduct.query.all()
@@ -118,6 +121,7 @@ def get_loan_products():
 
 # GET single loan product by ID
 @loan_product_bp.route('/<int:id>', methods=['GET'])
+@cross_origin()
 @jwt_required()
 def get_loan_product(id):
     product = LoanProduct.query.get(id)
@@ -127,6 +131,7 @@ def get_loan_product(id):
 
 # A lender/admin can create a new loan product
 @loan_product_bp.route('', methods=['POST'])
+@cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def create_loan_product():
@@ -197,6 +202,7 @@ def create_loan_product():
 
 # A lender/admin can edit existing loan product
 @loan_product_bp.route('/<int:id>', methods=['PATCH'])
+@cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def update_loan_product(id):
@@ -229,6 +235,7 @@ def update_loan_product(id):
 
 # admin/lender can DELETE a loan product
 @loan_product_bp.route('/<int:id>', methods=['DELETE'])
+@cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def delete_loan_product(id):
@@ -246,6 +253,7 @@ def delete_loan_product(id):
 
 # A lender approves any applied loan
 @loan_bp.route('/<int:id>/approve', methods=['PATCH'])
+@cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def approve_loan(id):
@@ -278,6 +286,7 @@ def approve_loan(id):
 
 # Lender can reject an applied loan
 @loan_bp.route('/<int:id>/reject', methods=['PATCH'])
+@cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def reject_loan(id):
@@ -308,6 +317,7 @@ def reject_loan(id):
 
 # Lender/admin can disburse loans after approval
 @loan_bp.route('/<int:id>/disburse', methods=['PATCH'])
+@cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def disburse_loan(id):
@@ -348,6 +358,7 @@ def disburse_loan(id):
 
 # mark a loan as complete after all repayments
 @loan_bp.route('/<int:id>/complete', methods=['PATCH'])
+@cross_origin()
 @jwt_required()
 @role_required('lender')
 def complete_loan(id):
@@ -362,3 +373,15 @@ def complete_loan(id):
     loan.status = LoanStatus.completed
     db.session.commit()
     return jsonify({'message': 'Loan marked as complete'}), 200
+
+# OPTIONS handlers for CORS preflight
+@loan_bp.route('', methods=['OPTIONS'])
+@cross_origin()
+def loan_options():
+    return '', 204
+
+
+@loan_product_bp.route('', methods=['OPTIONS'])
+@cross_origin()
+def loan_product_options():
+    return '', 204
