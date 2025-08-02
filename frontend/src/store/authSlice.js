@@ -147,13 +147,12 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refresh_token
         state.user_id = action.payload.user_id
 
-        // Normalize role names for frontend consistency
+      // Normalize role names for frontend consistency
       let normalizedRole = action.payload.role
       if (normalizedRole) {
         normalizedRole = normalizedRole.toLowerCase()
-        if (normalizedRole === 'lender') {
-          normalizedRole = 'loan_officer'
-        } else if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
+        // Remove normalization of 'lender' to 'loan_officer'
+        if (normalizedRole === 'mama mboga' || normalizedRole === 'mama_mboga') {
           normalizedRole = 'customer'
         }
       }
