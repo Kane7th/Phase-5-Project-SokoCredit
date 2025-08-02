@@ -46,11 +46,18 @@ const CustomerProfile = ({ customer, onClose, onUpdate, onDelete }) => {
   const [documents, setDocuments] = useState({})
 
   useEffect(() => {
-    setEditedCustomer(customer)
-    fetchLoans()
-    fetchPayments()
-    fetchCommunications()
-    fetchDocuments()
+    try {
+      if (!customer || Object.keys(customer).length === 0) {
+        return
+      }
+      setEditedCustomer(customer)
+      fetchLoans()
+      fetchPayments()
+      fetchCommunications()
+      fetchDocuments()
+    } catch (error) {
+      console.error('Error in CustomerProfile useEffect:', error)
+    }
   }, [customer])
 
   const fetchLoans = async () => {
@@ -403,13 +410,13 @@ const CustomerProfile = ({ customer, onClose, onUpdate, onDelete }) => {
         <div className="profile-section full-width">
           <h3>Tags and Notes</h3>
           <div className="tags-section">
-            <div className="customer-tags">
-              {customer.tags.map((tag, index) => (
-                <span key={index} className="tag">
-                  {tag.replace('_', ' ')}
-                </span>
-              ))}
-            </div>
+          <div className="customer-tags">
+            {(customer.tags || []).map((tag, index) => (
+              <span key={index} className="tag">
+                {tag.replace('_', ' ')}
+              </span>
+            ))}
+          </div>
           </div>
 
           <div className="notes-section">
@@ -720,12 +727,12 @@ const CustomerProfile = ({ customer, onClose, onUpdate, onDelete }) => {
       <div className="profile-modal">
         <div className="profile-header">
           <div className="customer-summary">
-            <div className="customer-avatar large">
-              {customer.name.charAt(0)}
-            </div>
+      <div className="customer-avatar large">
+        {customer.name ? customer.name.charAt(0) : ''}
+      </div>
             <div className="customer-info">
               <h2>{customer.name}</h2>
-              <p>{customer.business.name}</p>
+              <p>{customer.business ? customer.business.name : 'N/A'}</p>
               <div className="customer-meta">
                 <span>
                   <Phone size={14} />
@@ -733,7 +740,7 @@ const CustomerProfile = ({ customer, onClose, onUpdate, onDelete }) => {
                 </span>
                 <span>
                   <MapPin size={14} />
-                  {customer.business.location}
+                  {customer.business ? customer.business.location : 'N/A'}
                 </span>
                 <span>
                   <Calendar size={14} />
