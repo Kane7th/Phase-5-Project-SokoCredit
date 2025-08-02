@@ -2,8 +2,11 @@ import api from './api'
 
 export const customerService = {
   // Customer CRUD
-  listCustomers: async (params) => {
-    const response = await api.get('/api/customers', { params })
+  // Removed listCustomers method to prevent customers from viewing all customers
+
+  getCustomerByUser: async (userId) => {
+    const response = await api.get(`/api/customers/by-user/${userId}`)
+    console.log('customerService.getCustomerByUser response:', response)
     return response
   },
 
@@ -22,10 +25,7 @@ export const customerService = {
     return response
   },
 
-  deleteCustomer: async (customerId) => {
-    const response = await api.delete(`/api/customers/${customerId}`)
-    return response
-  },
+  // Removed deleteCustomer method to prevent customers from deleting customers
 
   // Customer loan history
   getCustomerLoans: async (customerId) => {
@@ -36,6 +36,18 @@ export const customerService = {
   // Customer payment history
   getCustomerPayments: async (customerId) => {
     const response = await api.get(`/api/customers/${customerId}/payments`)
+    return response
+  },
+
+  // New method to get loans for logged-in user
+  getLoans: async () => {
+    const response = await api.get('/api/loans')
+    return response
+  },
+
+  // New method to get payments for logged-in user
+  getPayments: async () => {
+    const response = await api.get('/api/loans/repayments')
     return response
   },
 
@@ -75,7 +87,7 @@ export const customerService = {
 
   // Customer analytics
   getCustomerStats: async () => {
-    const response = await api.get('/api/customers/stats')
+    const response = await api.get('/api/analytics')
     return response
   },
 
@@ -105,6 +117,25 @@ export const customerService = {
   // New method to get customers for logged-in lender
   getMyCustomers: async () => {
     const response = await api.get('/api/customers/my_customers')
+    return response
+  },
+
+  getLenderCustomers: async (lenderId) => {
+    const response = await api.get(`/api/customers/my_customers?lender_id=${lenderId}`)
+    return response
+  },
+
+  // New method to apply for a loan
+  applyForLoan: async (loanData) => {
+    const response = await api.post('/loans', loanData)
+    return response
+  },
+
+  // New method to update customer profile with multipart/form-data
+  updateCustomerProfile: async (formData) => {
+    const response = await api.put('/api/customers/profile', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
     return response
   }
 }

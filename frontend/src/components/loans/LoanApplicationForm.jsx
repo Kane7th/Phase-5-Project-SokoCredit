@@ -20,6 +20,8 @@ const LoanApplicationForm = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [loanCalculation, setLoanCalculation] = useState(null)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const [loanProducts, setLoanProducts] = useState([])
+  const [selectedLoanProductId, setSelectedLoanProductId] = useState(null)
   
   const navigate = useNavigate()
   const { user } = useSelector((state) => state.auth)
@@ -30,11 +32,12 @@ const LoanApplicationForm = () => {
     handleSubmit,
     formState: { errors },
     watch,
-    trigger
+    trigger,
+    setValue
   } = useForm({
     defaultValues: {
       customer_id: isCustomer ? user?.id : '',
-      loan_type: 'business',
+      loan_type: selectedLoanProductId || '',
       amount: '',
       duration_months: '6',
       repayment_frequency: 'weekly',
@@ -61,15 +64,65 @@ const LoanApplicationForm = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch('/api/customers')
+        if (isCustomer) {
+          setCustomers([])
+          return
+        }
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+          console.warn('No access token found, skipping fetchCustomers')
+          return
+        }
+        const response = await fetch('/api/customers', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
         const data = await response.json()
         setCustomers(data.customers || [])
       } catch (error) {
         console.error('Failed to fetch customers:', error)
       }
     }
+
+    const fetchLoanProducts = async () => {
+      try {
+        const token = localStorage.getItem('access_token')
+        if (!token) {
+          console.warn('No access token found, skipping fetchLoanProducts')
+          return
+        }
+        const response = await fetch('/api/loan-products', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        const data = await response.json()
+        console.log('Fetched loan products:', data)
+        setLoanProducts(data || [])
+        if (data && data.length > 0) {
+          setSelectedLoanProductId(data[0].id)
+          setValue('loan_type', data[0].id)
+        } else {
+          setSelectedLoanProductId('')
+          setValue('loan_type', '')
+        }
+      } catch (error) {
+        console.error('Failed to fetch loan products:', error)
+      }
+    }
+
     fetchCustomers()
-  }, [])
+    fetchLoanProducts()
+  }, [isCustomer, setValue])
+
+  useEffect(() => {
+    // On mount, check if loanProduct is passed in navigation state and set loan_type accordingly
+    const state = window.history.state?.usr?.state
+    if (state && state.loanProduct) {
+      setValue('loan_type', state.loanProduct)
+    }
+  }, [setValue])
 
   const calculateLoanTerms = () => {
     const principal = parseFloat(watchedAmount) || 0
@@ -122,7 +175,8 @@ const LoanApplicationForm = () => {
     }
   }, [watchedAmount, watchedDuration, watchedFrequency])
 
-  const nextStep = async () => {
+  const nextStep = async (event) => {
+    if (event) event.preventDefault()
     let fieldsToValidate = []
     
     switch (currentStep) {
@@ -155,10 +209,11 @@ const LoanApplicationForm = () => {
       const payload = {
         amount: parseFloat(data.amount),
         interest_rate: 0.12,
-        duration_months: parseInt(data.duration_months)
+        duration_months: parseInt(data.duration_months),
+        loan_product_id: selectedLoanProductId
       }
-      await api.post('/loans', payload)
-      navigate('/dashboard')
+      await api.post('/api/loans', payload)
+      navigate('/dashboard', { state: { refresh: true } })
     } catch (error) {
       console.error('Loan application failed:', error)
       const message = error.response?.data?.error || 'Failed to submit loan application. Please try again.'
@@ -269,22 +324,27 @@ const LoanApplicationForm = () => {
       </div>
 
       <div className="form-grid">
-        <div className="form-group">
-          <label className="form-label">Loan Type *</label>
-          <select
-            className={`form-select ${errors.loan_type ? 'error' : ''}`}
-            {...register('loan_type', { required: 'Please select loan type' })}
-          >
-            <option value="business">Business Expansion</option>
-            <option value="inventory">Inventory Financing</option>
-            <option value="equipment">Equipment Purchase</option>
-            <option value="emergency">Emergency Loan</option>
-            <option value="personal">Personal Loan</option>
-          </select>
-          {errors.loan_type && (
-            <div className="text-error">{errors.loan_type.message}</div>
-          )}
-        </div>
+      <div className="form-group">
+        <label className="form-label">Loan Type *</label>
+        <select
+          className={`form-select ${errors.loan_type ? 'error' : ''}`}
+          {...register('loan_type', { required: 'Please select loan type' })}
+          onChange={(e) => {
+            setSelectedLoanProductId(e.target.value)
+            setValue('loan_type', e.target.value)
+          }}
+        >
+          <option value="">Select a loan type</option>
+          {loanProducts.map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.name}
+            </option>
+          ))}
+        </select>
+        {errors.loan_type && (
+          <div className="text-error">{errors.loan_type.message}</div>
+        )}
+      </div>
 
         <div className="form-group">
           <label className="form-label">Repayment Frequency *</label>
@@ -324,22 +384,22 @@ const LoanApplicationForm = () => {
         <div className="calculation-preview">
           <h4>Loan Calculation Preview</h4>
           <div className="calculation-grid">
-            <div className="calc-item">
-              <label>Principal Amount</label>
-              <value>KSH {loanCalculation.principal.toLocaleString()}</value>
-            </div>
-            <div className="calc-item">
-              <label>Total Interest</label>
-              <value>KSH {loanCalculation.totalInterest.toLocaleString()}</value>
-            </div>
-            <div className="calc-item">
-              <label>Total Repayment</label>
-              <value>KSH {loanCalculation.totalAmount.toLocaleString()}</value>
-            </div>
-            <div className="calc-item highlight">
-              <label>{loanCalculation.paymentInterval} Payment</label>
-              <value>KSH {loanCalculation.paymentAmount.toLocaleString()}</value>
-            </div>
+              <div className="calc-item">
+                <label>Principal Amount</label>
+                <div>KSH {loanCalculation.principal.toLocaleString()}</div>
+              </div>
+              <div className="calc-item">
+                <label>Total Interest</label>
+                <div>KSH {loanCalculation.totalInterest.toLocaleString()}</div>
+              </div>
+              <div className="calc-item">
+                <label>Total Repayment</label>
+                <div>KSH {loanCalculation.totalAmount.toLocaleString()}</div>
+              </div>
+              <div className="calc-item highlight">
+                <label>{loanCalculation.paymentInterval} Payment</label>
+                <div>KSH {loanCalculation.paymentAmount.toLocaleString()}</div>
+              </div>
           </div>
           <div className="calc-summary">
             <p>
@@ -462,30 +522,30 @@ const LoanApplicationForm = () => {
             <div className="review-grid">
               <div className="review-item">
                 <label>Name:</label>
-                <value>
+                <span>
                   {isCustomer 
                     ? user?.full_name 
                     : selectedCustomer?.name || 'Not selected'
                   }
-                </value>
+                </span>
               </div>
               <div className="review-item">
                 <label>Business:</label>
-                <value>
+                <span>
                   {isCustomer 
                     ? user?.business_name 
                     : selectedCustomer?.business || 'Not selected'
                   }
-                </value>
+                </span>
               </div>
               <div className="review-item">
                 <label>Phone:</label>
-                <value>
+                <span>
                   {isCustomer 
                     ? user?.phone 
                     : selectedCustomer?.phone || 'Not selected'
                   }
-                </value>
+                </span>
               </div>
             </div>
           </div>
@@ -496,24 +556,24 @@ const LoanApplicationForm = () => {
             <div className="review-grid">
               <div className="review-item">
                 <label>Loan Type:</label>
-                <value>{formData.loan_type?.replace('_', ' ')}</value>
+                <span>{formData.loan_type?.replace('_', ' ')}</span>
               </div>
               <div className="review-item">
                 <label>Amount:</label>
-                <value>KSH {parseInt(formData.amount).toLocaleString()}</value>
+                <span>KSH {parseInt(formData.amount).toLocaleString()}</span>
               </div>
               <div className="review-item">
                 <label>Duration:</label>
-                <value>{formData.duration_months} months</value>
+                <span>{formData.duration_months} months</span>
               </div>
               <div className="review-item">
                 <label>Repayment:</label>
-                <value>{formData.repayment_frequency}</value>
+                <span>{formData.repayment_frequency}</span>
               </div>
             </div>
             <div className="review-item-full">
               <label>Purpose:</label>
-              <value>{formData.purpose}</value>
+              <span>{formData.purpose}</span>
             </div>
           </div>
 
@@ -523,19 +583,19 @@ const LoanApplicationForm = () => {
             <div className="review-grid">
               <div className="review-item">
                 <label>Monthly Revenue:</label>
-                <value>KSH {parseInt(formData.business_revenue || 0).toLocaleString()}</value>
+                <span>KSH {parseInt(formData.business_revenue || 0).toLocaleString()}</span>
               </div>
               <div className="review-item">
                 <label>Monthly Expenses:</label>
-                <value>KSH {parseInt(formData.expenses || 0).toLocaleString()}</value>
+                <span>KSH {parseInt(formData.expenses || 0).toLocaleString()}</span>
               </div>
               <div className="review-item">
                 <label>Net Income:</label>
-                <value>KSH {(parseInt(formData.business_revenue || 0) - parseInt(formData.expenses || 0)).toLocaleString()}</value>
+                <span>KSH {(parseInt(formData.business_revenue || 0) - parseInt(formData.expenses || 0)).toLocaleString()}</span>
               </div>
               <div className="review-item">
                 <label>Other Loans:</label>
-                <value>{formData.other_loans === 'yes' ? 'Yes' : 'No'}</value>
+                <span>{formData.other_loans === 'yes' ? 'Yes' : 'No'}</span>
               </div>
             </div>
           </div>
@@ -572,6 +632,8 @@ const LoanApplicationForm = () => {
     )
   }
 
+  console.log('loanProducts state:', loanProducts)
+  console.log('currentStep:', currentStep)
   return (
     <div className="loan-application-container">
       <div className="application-header">
