@@ -37,19 +37,3 @@ def get_access_token():
             raise Exception(f"Token request failed with status {response.status_code}: {response.text}")
     except Exception as e:
             raise Exception("Failed to generate access token: " + str(e))    
-    
-    
-    
-    # response = requests.get(
-    #     auth_url,
-    #     headers = {
-    #         "Authorization": f"Basic {auth}"
-    #     }
-    # )
-    # print(f'response: {response}')
-    # if response.status_code == 200:
-    #     access_token = response.json().get('access_token')
-    #     return access_token
-    # else:
-    #     raise Exception(f'failed to generate access token: {response.text}')
-    

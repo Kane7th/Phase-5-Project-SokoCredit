@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import current_app
 from .client import get_access_token
 
-def send_stk_push(phone_number: str, amount: int, account_ref='MySoko', description='Loan payments'):
+def send_stk_push(phone_number: str, amount: int, account_ref='MySoko', description='Loans'):
     """
     Helper func. handling STK Push request logic, later will be 
     imported into views.py.
@@ -20,8 +20,9 @@ def send_stk_push(phone_number: str, amount: int, account_ref='MySoko', descript
     
     # combine for password
     data_to_encode = business_shortcode + passkey + timestamp
+    print(f'Raw: {data_to_encode}')
     encoded_password = base64.b64encode(data_to_encode.encode()).decode()
-    
+    print(f'Encoded: {encoded_password}')
     url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
      
     print("Token acquired at:", datetime.now().isoformat())    
@@ -31,6 +32,10 @@ def send_stk_push(phone_number: str, amount: int, account_ref='MySoko', descript
     print(f"Password: {encoded_password}")
     print(f"Timestamp: {timestamp}")
  
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
     # build request body
     payload = {
         'BusinessShortCode': business_shortcode,
@@ -46,10 +51,6 @@ def send_stk_push(phone_number: str, amount: int, account_ref='MySoko', descript
         "TransactionDesc": description
     }
     
-    headers = {
-        'Authorization': f'Bearer {access_token}',
-        'Content-Type': 'application/json'
-    }
     # print("Payload being sent:", payload)
     # print("Headers being sent:", headers)
     
