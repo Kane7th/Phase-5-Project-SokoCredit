@@ -1,0 +1,42 @@
+.lender-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-family: Arial, sans-serif;
+}
+
+.lender-table th,
+.lender-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.lender-table th {
+  background-color: #6a1b9a; /* Purple header */
+  color: white;
+  font-weight: bold;
+}
+
+.lender-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.lender-table tr:hover {
+  background-color: #f1e6ff;
+}
+
+.lender-table.pending th {
+  background-color: #f57c00; /* Orange for pending */
+}
+
+.lender-table.approved th {
+  background-color: #388e3c; /* Green for approved */
+}
+
+h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #4a148c;
+  font-weight: 600;
+}
