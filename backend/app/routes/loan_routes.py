@@ -275,9 +275,7 @@ def approve_loan(id):
 
         return jsonify({
             'message': 'Loan approved and repayment schedule created',
-            'loan': loan.to_dict(rules=(
-                '-borrower', '-lender', '-repayments', '-loan_product'
-            ))
+            'loan': loan.to_dict()
         }), 200
 
     except Exception as e:
