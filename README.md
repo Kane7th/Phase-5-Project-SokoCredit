@@ -130,8 +130,8 @@ Also includes a Postman collection:
 Set these in a `.env` or export manually:
 
 ```bash
-AFRICASTALKING_USERNAME=your_username
-AFRICASTALKING_API_KEY=your_api_key
+AFRICASTALKING_USERNAME=your_username # login and retrieve from Africa's Talking 
+AFRICASTALKING_API_KEY=your_api_key # login and retrieve from Africa's Talking 
 DATABASE_URL=postgresql://postgres:password@localhost/sokocredit_db
 JWT_SECRET_KEY=supersecret
 ```
