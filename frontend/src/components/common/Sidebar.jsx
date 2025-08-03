@@ -45,7 +45,7 @@ const Sidebar = () => {
         title: 'Lender Management',
         icon: UserCheck,
         path: '/dashboard/admin/lenders',
-        badge: '8 pending'
+        badge: null
       },
       {
         title: 'System Analytics',
@@ -62,7 +62,7 @@ const Sidebar = () => {
       {
         title: 'Loan Portfolio',
         icon: DollarSign,
-        path: '/dashboard/admin/portfolio',
+        path: '/dashboard/admin/loan-portfolio',
         badge: null
       },
       {

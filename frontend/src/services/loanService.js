@@ -70,3 +70,33 @@ export const getCreditScore = (customerId) => {
 export const updateCreditScore = (customerId, data) => {
   return api.put(`/credit-score/${customerId}`, data)
 }
+
+// Loan Comments
+export const getLoanComments = (loanId) => {
+  return api.get(`/api/loan-comments/${loanId}`)
+}
+
+export const addLoanComment = (loanId, commentText) => {
+  return api.post(`/api/loan-comments/${loanId}`, { comment_text: commentText })
+}
+
+export const deleteLoanComment = (commentId) => {
+  return api.delete(`/api/loan-comments/${commentId}`)
+}
+
+// Loan Status Updates
+export const updateLoanStatus = (loanId, status, rejectedReason = '') => {
+  let url = ''
+  let data = {}
+  if (status === 'approved') {
+    url = `/api/loans/${loanId}/approve`
+  } else if (status === 'rejected') {
+    url = `/api/loans/${loanId}/reject`
+    data = { rejected_reason: rejectedReason }
+  } else if (status === 'disbursed') {
+    url = `/api/loans/${loanId}/disburse`
+  } else {
+    throw new Error('Invalid status')
+  }
+  return api.patch(url, data)
+}
