@@ -5,6 +5,7 @@ from app.models.user import User
 from app.extensions import db
 from app import socketio
 from flask_socketio import emit
+from datetime import datetime
 
 notifications_bp = Blueprint("notifications", __name__, url_prefix="/api/users/notifications")
 
@@ -24,6 +25,83 @@ def extract_user_id(identity):
         except (IndexError, ValueError):
             return None
     return None
+
+# GET /unread-count
+@notifications_bp.route("/unread-count", methods=["GET"])
+@jwt_required()
+def unread_count():
+    user_id = extract_user_id(get_jwt_identity())
+    count = Notification.get_unread_count_for_user(user_id)
+    return jsonify({"unread_count": count}), 200
+
+
+# PUT /mark-all-read
+@notifications_bp.route("/mark-all-read", methods=["PUT"])
+@jwt_required()
+def mark_all_read():
+    user_id = extract_user_id(get_jwt_identity())
+    Notification.mark_all_as_read_for_user(user_id)
+    return jsonify({"message": "All notifications marked as read"}), 200
+
+
+# POST /<notification_id>/restore
+@notifications_bp.route("/<int:notification_id>/restore", methods=["POST"])
+@jwt_required()
+def restore_notification(notification_id):
+    user_id = extract_user_id(get_jwt_identity())
+    notif = Notification.query.filter_by(id=notification_id, user_id=user_id).first()
+    if not notif:
+        return jsonify({"error": "Notification not found"}), 404
+    notif.restore()
+    return jsonify({"message": "Notification restored"}), 200
+
+
+# GET /search (advanced filtering)
+@notifications_bp.route("/search", methods=["GET"])
+@jwt_required()
+def search_notifications():
+    user_id = extract_user_id(get_jwt_identity())
+
+    read_param = request.args.get("read")
+    keyword = request.args.get("keyword")
+    date = request.args.get("date")
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 10))
+
+    results = []
+
+    if date:
+        try:
+            date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+            results = Notification.get_notifications_by_date(user_id, date_obj, page, per_page)
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    elif start_date and end_date:
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date, "%Y-%m-%d").date()
+            results = Notification.get_notifications_by_date_range(user_id, start, end, page, per_page)
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    elif keyword:
+        results = Notification.get_notifications_by_keyword(user_id, keyword, page, per_page)
+
+    elif read_param is not None:
+        if read_param.lower() == "true":
+            results = Notification.get_notifications_by_read_status(user_id, True, page, per_page)
+        elif read_param.lower() == "false":
+            results = Notification.get_notifications_by_read_status(user_id, False, page, per_page)
+        else:
+            return jsonify({"error": "Invalid read value. Use true or false"}), 400
+    else:
+        # Fallback to basic fetch with pagination
+        results = Notification.get_notifications_for_user(user_id, page, per_page)
+
+    return jsonify([r.to_dict() for r in results]), 200
 
 # GET all notifications for current user
 @notifications_bp.route("/", methods=["GET"])

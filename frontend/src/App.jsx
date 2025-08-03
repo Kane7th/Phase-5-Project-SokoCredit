@@ -9,9 +9,12 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import Layout from './components/common/Layout'
 import NotificationListener from './components/NotificationListener'
 import ProfilePage from './components/customer/ProfilePage'
+import CompleteProfile from './components/customer/CompleteProfile'
 import Settings from './components/common/Settings'
 import ChangePassword from './components/auth/ChangePassword'
 import ForgotPassword from './components/auth/ForgotPassword'
+import LoanApplicationForm from './components/loans/LoanApplicationForm'
+import LoanDetails from './components/loans/LoanDetails'
 
 function App() {
   const { isAuthenticated, user_id, role, token } = useSelector((state) => state.auth)
@@ -41,10 +44,37 @@ function App() {
         </Route>
 
         <Route
+          path="/loan-application"
+          element={
+            <ProtectedRoute allowedRoles={['customer']}>
+              <LoanApplicationForm />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/loans/:id"
+          element={
+            <ProtectedRoute allowedRoles={['customer']}>
+              <LoanDetails />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/profile"
           element={
             <ProtectedRoute allowedRoles={['admin', 'lender', 'customer']}>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/complete-profile"
+          element={
+            <ProtectedRoute allowedRoles={['customer']}>
+              <CompleteProfile />
             </ProtectedRoute>
           }
         />

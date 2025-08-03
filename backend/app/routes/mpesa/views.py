@@ -40,7 +40,7 @@ def stk_push():
         return jsonify({'error': 'Invalid phone number format. Use 2547xxxxxxxx'}), 400
         
     try:
-        result = send_stk_push(phone_number, int(amount))
+        result = send_stk_push(phone, int(amount))
         return jsonify({
             "message": 'Payment initiated. Check your phone to approve the payment.',
             "mpesa_response": result    

@@ -1,6 +1,6 @@
 from app.extensions import db
 from datetime import datetime
-
+from sqlalchemy.sql import func
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -8,7 +8,9 @@ class Notification(db.Model):
     message = db.Column(db.String(255), nullable=False)
     read = db.Column(db.Boolean, default=False)
     is_deleted = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    type = db.Column(db.String(50), default="info")
 
     user = db.relationship("User", backref=db.backref("notifications", lazy=True))
 

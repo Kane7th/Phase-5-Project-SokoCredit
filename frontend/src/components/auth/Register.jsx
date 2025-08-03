@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { 
   User, Mail, Phone, Lock, Building, MapPin, 
@@ -13,9 +13,9 @@ import FileUpload from '../common/FileUpload'
 const CustomerRegister = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  // Removed uploadedDocuments state and handleDocumentUpload as document upload is removed
 
   const dispatch = useDispatch()
+  const navigate = useNavigate()
   const { isLoading, error } = useSelector((state) => state.auth)
 
   const {
@@ -28,7 +28,7 @@ const CustomerRegister = () => {
   const watchedPassword = watch('password')
 
   const onSubmit = async (data) => {
-    // Prepare data object excluding confirm_password and uploaded documents
+    
     const submitData = {}
     Object.keys(data).forEach(key => {
       if (key !== 'confirm_password') {
@@ -39,10 +39,16 @@ const CustomerRegister = () => {
     // Set role as customer
     submitData.role = 'customer'
 
-    dispatch(registerUser(submitData))
+    dispatch(registerUser(submitData)).unwrap().then(() => {
+      // After successful registration, redirect to login page
+      navigate('/login')
+      // Removed window.location.reload() to avoid full page reload
+    }).catch(() => {
+      // Handle registration error if needed
+    })
   }
 
-  // Removed handleDocumentUpload function as document upload is removed
+
 
   return (
     <div className="auth-container">
@@ -51,7 +57,7 @@ const CustomerRegister = () => {
           <div className="auth-logo">🛒</div>
           <h1 className="auth-title">Join SokoCredit</h1>
           <p className="auth-subtitle">
-            Register your business and access microfinance services
+            Register and access microfinance services
           </p>
         </div>
 
@@ -241,8 +247,7 @@ const CustomerRegister = () => {
             </div>
           </div>
 
-          {/* Business Information */}
-          {/* Removed business information fields as per user request */}
+         
 
           {/* Password Section */}
           <div style={{ margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid var(--gray-200)' }}>
@@ -305,8 +310,7 @@ const CustomerRegister = () => {
             )}
           </div>
 
-          {/* Document Upload */}
-          {/* Removed document upload fields as per user request */}
+  
 
           <button
             type="submit"

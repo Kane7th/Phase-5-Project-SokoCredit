@@ -5,7 +5,12 @@ from sqlalchemy_serializer import SerializerMixin
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
 
-    serialize_rules = ('-customer_profile.user', '-loans', '-issued_loans')
+    serialize_rules = (
+        '-customer_profile.customer_user',
+        '-loans',
+        '-issued_loans',
+        '-created_customers.created_by_user',
+    )
 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -18,6 +23,9 @@ class User(db.Model, SerializerMixin):
     email = db.Column(db.String(120), unique=True, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='customer', nullable=False)
+    status = db.Column(db.String(20), default='pending', nullable=False)
+
+    organisation = db.Column(db.String(100), nullable=True)
 
     # Loans where user is the borrower
     loans = db.relationship("Loan", foreign_keys="Loan.customer_id", back_populates="customer")
@@ -49,5 +57,5 @@ class User(db.Model, SerializerMixin):
     def check_password(self, password):
         return pbkdf2_sha256.verify(password, self.password_hash)
 
-    def __repr__(self):
+    def _repr_(self):
         return f'<User id={self.id} username={self.username} role={self.role}>'

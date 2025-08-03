@@ -1,0 +1,65 @@
+.
+├── backend
+│   ├── app
+│   │   ├── extensions.py
+│   │   ├── __init__.py
+│   │   ├── models
+│   │   ├── routes
+│   │   └── sockets
+│   ├── config
+│   │   ├── default_config.py
+│   │   ├── __init__.py
+│   │   └── test_config.py
+│   ├── instance
+│   ├── Pipfile
+│   ├── Pipfile.lock
+│   ├── project-structure.txt
+│   ├── requirements.txt
+│   ├── run.py
+│   ├── scripts
+│   │   └── create_customer_profiles.py
+│   ├── seed.py
+│   ├── sokocredit_db
+│   ├── tests
+│   │   ├── conftest.py
+│   │   ├── How To Test Using Postman.MD
+│   │   ├── sokocredit_customer_api.postman_collection.json
+│   │   └── test_customers.py
+│   ├── uploads
+│   │   └── customers
+│   ├── utils
+│   │   ├── decorators.py
+│   │   ├── loan_status.py
+│   │   ├── repayment_status.py
+│   │   └── sms_service.py
+│   └── venv
+│       ├── bin
+│       ├── include
+│       ├── lib
+│       ├── lib64 -> lib
+│       ├── pyvenv.cfg
+│       └── README.md
+├── endpoints.md
+├── frontend
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── public
+│   │   └── vite.svg
+│   ├── README.md
+│   ├── src
+│   │   ├── App.css
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   ├── components
+│   │   ├── index.css
+│   │   ├── main.jsx
+│   │   ├── services
+│   │   ├── store
+│   │   └── styles
+│   └── vite.config.js
+├── project-structure.txt
+└── README.md
+
+26 directories, 37 files
