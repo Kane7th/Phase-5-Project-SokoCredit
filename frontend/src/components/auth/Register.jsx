@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { 
   User, Mail, Phone, Lock, Building, MapPin, 
@@ -15,6 +15,7 @@ const CustomerRegister = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const dispatch = useDispatch()
+  const navigate = useNavigate()
   const { isLoading, error } = useSelector((state) => state.auth)
 
   const {
@@ -38,7 +39,13 @@ const CustomerRegister = () => {
     // Set role as customer
     submitData.role = 'customer'
 
-    dispatch(registerUser(submitData))
+    dispatch(registerUser(submitData)).unwrap().then(() => {
+      // After successful registration, redirect to login page
+      navigate('/login')
+      // Removed window.location.reload() to avoid full page reload
+    }).catch(() => {
+      // Handle registration error if needed
+    })
   }
 
 

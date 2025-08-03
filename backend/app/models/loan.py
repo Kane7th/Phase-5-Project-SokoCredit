@@ -52,8 +52,25 @@ class Loan(db.Model, SerializerMixin):
     def total_repaid(self):
         return sum(r.amount_paid for r in self.repayments)
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "amount": self.amount,
+            "interest_rate": self.interest_rate,
+            "duration_months": self.duration_months,
+            "status": self.status.value if self.status else None,
+            "issued_date": self.issued_date.isoformat() if self.issued_date else None,
+            "approved_date": self.approved_date.isoformat() if self.approved_date else None,
+            "disbursed_date": self.disbursed_date.isoformat() if self.disbursed_date else None,
+            "rejected_reason": self.rejected_reason,
+            "customer_id": self.customer_id,
+            "lender_id": self.lender_id,
+            "loan_product_id": self.loan_product_id,
+            
+        }
     def __repr__(self):
         return (
             f'<Loan id={self.id} amount={self.amount} '
             f'status={self.status} customer_id={self.customer_id} lender_id={self.lender_id}>'
         )
+    

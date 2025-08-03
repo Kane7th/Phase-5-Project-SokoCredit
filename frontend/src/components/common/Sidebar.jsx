@@ -62,7 +62,7 @@ const Sidebar = () => {
       {
         title: 'Loan Portfolio',
         icon: DollarSign,
-        path: '/dashboard/admin/loans',
+        path: '/dashboard/admin/portfolio',
         badge: null
       },
       {

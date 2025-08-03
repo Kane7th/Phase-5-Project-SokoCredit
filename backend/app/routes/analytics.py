@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
 from utils.decorators import role_required
+<<<<<<< HEAD
 from app.extensions import db
 from app.models.user import User
 from app.models.customer import Customer
@@ -10,23 +11,27 @@ from app.models.loan_products import LoanProduct
 from sqlalchemy import func, case, and_
 from app.models.notification import Notification
 from datetime import datetime
+=======
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
-analytics_bp = Blueprint('analytics', __name__, url_prefix='/analytics')
+analytics_bp = Blueprint('analytics_bp', __name__, url_prefix='/api/analytics')
 
-# OVERVIEW
 @analytics_bp.route('/overview', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
-def get_overview():
-    total_revenue = db.session.query(func.sum(Repayment.amount)).scalar() or 0
-    total_disbursed = db.session.query(func.sum(Loan.amount)).scalar() or 0
-    total_repaid = total_revenue
-    active_loans = db.session.query(Loan).filter(Loan.status == 'active').count()
-    defaulted_loans = db.session.query(Loan).filter(Loan.status == 'defaulted').count()
-    new_customers_this_month = db.session.query(Customer).filter(
-        func.date_trunc('month', Customer.created_at) == func.date_trunc('month', func.now())
-    ).count()
+def overview():
+    # Placeholder data - replace with real analytics queries
+    data = {
+        'totalDisbursed': 15420000,
+        'activeLoans': 120,
+        'newCustomersThisMonth': 45,
+        'collectionRate': 94.2,
+        'defaultRate': 2.8,
+        'averageLoanSize': 47500
+    }
+    return jsonify(data), 200
 
+<<<<<<< HEAD
     default_rate = (defaulted_loans / active_loans * 100) if active_loans > 0 else 0
 
     Notification.create_notification(None, "📊 Overview data accessed.")
@@ -92,8 +97,43 @@ def get_customer_analytics():
         "ageGroups": {"18-25": 0, "26-35": 0, "36-50": 0, "51+": 0},
         "gender": {"male": 0, "female": 0},
         "location": {}
+=======
+@analytics_bp.route('/performance', methods=['GET'])
+@jwt_required()
+@role_required(['admin', 'lender'])
+def performance():
+    # Placeholder data
+    data = {
+        'disbursed': [
+            {'date': '2025-06-01', 'amount': 1000000},
+            {'date': '2025-06-15', 'amount': 1200000},
+            {'date': '2025-07-01', 'amount': 1100000},
+        ],
+        'collections': [
+            {'date': '2025-06-01', 'amount': 800000},
+            {'date': '2025-06-15', 'amount': 900000},
+            {'date': '2025-07-01', 'amount': 950000},
+        ]
     }
+    return jsonify(data), 200
 
+@analytics_bp.route('/customers', methods=['GET'])
+@jwt_required()
+@role_required(['admin', 'lender'])
+def customers():
+    # Placeholder data
+    data = {
+        'segments': [
+            {'segment': 'Mama Mboga', 'percentage': 40, 'avgLoan': 50000},
+            {'segment': 'Small Business', 'percentage': 30, 'avgLoan': 75000},
+            {'segment': 'Farmers', 'percentage': 20, 'avgLoan': 60000},
+            {'segment': 'Others', 'percentage': 10, 'avgLoan': 40000},
+        ]
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
+    }
+    return jsonify(data), 200
+
+<<<<<<< HEAD
     Notification.create_notification(None, "👥 Customer analytics accessed.")
 
     return jsonify({
@@ -223,3 +263,18 @@ def get_loan_portfolio():
         "regionStats": [{"region": r[0], "portfolioValue": r[1], "activeLoans": r[2]} for r in region_stats],
         "loanProductStats": [{"product": p[0], "value": p[1]} for p in product_stats]
     })
+=======
+@analytics_bp.route('/risk', methods=['GET'])
+@jwt_required()
+@role_required(['admin', 'lender'])
+def risk():
+    # Placeholder data
+    data = {
+        'riskLevels': [
+            {'level': 'Low', 'count': 80},
+            {'level': 'Medium', 'count': 30},
+            {'level': 'High', 'count': 10},
+        ]
+    }
+    return jsonify(data), 200
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0

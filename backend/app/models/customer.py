@@ -5,7 +5,12 @@ from sqlalchemy_serializer import SerializerMixin
 class Customer(db.Model, SerializerMixin):
     __tablename__ = 'customers'
 
-    serialize_rules = ('-created_by_user.customer', '-customer_user.customer')
+    serialize_rules = (
+        '-created_by_user.customer',
+        '-customer_user.customer',
+        '-created_by_user.created_customers',
+        '-customer_user.customer_profile'
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     phone = db.Column(db.String(20), unique=True, nullable=False)
@@ -43,5 +48,5 @@ class Customer(db.Model, SerializerMixin):
         nullable=True
     )
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<Customer id={self.id} full_name='{self.full_name}' phone='{self.phone}'>"

@@ -108,16 +108,31 @@ def register_user():
         send_sms(phone, f"SokoCredit: Welcome {username}! Your account is ready.")
 
     if role == "customer":
+<<<<<<< HEAD
         message = f"👤 New customer registered: {first_name} {last_name}"
         admin_lender_users = User.query.filter(User.role.in_(["admin", "lender"])).all()
 
         for recipient in admin_lender_users:
             notif = Notification.create_notification(recipient.id, message)
             socketio.emit(f"notification:{recipient.id}", notif.to_dict(), namespace="/notifications")
+=======
+        # Create customer profile automatically
+        from app.models.customer import Customer
+        customer = Customer(
+            full_name=f"{first_name} {last_name}",
+            phone=phone,
+            email=email,
+            customer_user_id=user.id,
+            created_by=user.id
+        )
+        db.session.add(customer)
+        db.session.commit()
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
         return jsonify({
-            "msg": "Customer registered. Please complete your customer profile.",
+            "msg": "Customer registered and profile created.",
             "user_id": user.id,
+            "customer_id": customer.id,
             "next": "/customers/"
         }), 201
 

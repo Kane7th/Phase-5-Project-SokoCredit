@@ -2,6 +2,10 @@ import React from 'react'
 import { AlertTriangle, Shield, TrendingDown } from 'lucide-react'
 
 const RiskAnalysis = ({ data, detailed = false }) => {
+  if (!data || !data.distribution || !data.trends) {
+    return null
+  }
+
   const totalCustomers = data.distribution.reduce((sum, item) => sum + item.count, 0)
   
   const RiskDistributionChart = () => (

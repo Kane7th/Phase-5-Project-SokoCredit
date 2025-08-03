@@ -4,7 +4,6 @@ from datetime import datetime
 from sqlalchemy import Enum
 from enum import Enum as pyEnum
 
-
 class RepaymentFrequencies(pyEnum):
     daily = 'daily'
     weekly = 'weekly'

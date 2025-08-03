@@ -34,6 +34,10 @@ export const getActiveLoans = (params) => {
   return api.get('/loans', { params })
 }
 
+export const getLenderLoans = (lenderId) => {
+  return api.get(`/api/loans/lenders/${lenderId}/loans`)
+}
+
 export const getLoanDetails = (id) => {
   return api.get(`/loans/${id}`)
 }
