@@ -252,31 +252,51 @@ def delete_loan_product(id):
         return jsonify({'error': 'Failed to delete loan product', 'message': str(e)}), 500
 
 # A lender approves any applied loan
-@loan_bp.route('/<int:id>/approve', methods=['PATCH'])
+@loan_bp.route('/<int:id>/approve', methods=['PATCH', 'OPTIONS'])
 @cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def approve_loan(id):
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+        response.headers.add("Access-Control-Allow-Methods", "PATCH, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        return response
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
     try:
         loan = Loan.query.get_or_404(id)
-        
-        # Restrict approval to assigned lenders only
-        current_user_id = int(get_jwt_identity().split(':')[0])
-        user = User.query.get(current_user_id)
-        if loan.lender_id != current_user_id and user.role != 'admin':
-            return jsonify({'error': 'You can only approve your own loans'}), 403
 
         if loan.status != LoanStatus.pending:
             return jsonify({'error': 'No pending loans to approve'}), 400
 
         loan.status = LoanStatus.approved
         loan.approved_date = datetime.utcnow()
+
+        repayment_count = 12
+        amount_per_week = round(loan.amount / repayment_count, 2)
+        today = datetime.utcnow()
+
+        for i in range(repayment_count):
+            schedule = RepaymentSchedule(
+                loan_id=loan.id,
+                due_date=today + timedelta(weeks=i),
+                amount_due=amount_per_week,
+                status='unpaid'
+            )
+            db.session.add(schedule)
+
         db.session.commit()
 
         return jsonify({
             'message': 'Loan approved and repayment schedule created',
             'loan': loan.to_dict(rules=(
-                '-borrower', '-lender', '-repayments', '-loan_product'
+                '-borrower', '-lender', '-repayments', '-loan_product',
+                'repayment_schedules.id',
+                'repayment_schedules.due_date',
+                'repayment_schedules.amount_due',
+                'repayment_schedules.status'
             ))
         }), 200
 
@@ -284,23 +304,26 @@ def approve_loan(id):
         db.session.rollback()
         return jsonify({'error': 'Failed to approve the loan', 'message': str(e)}), 500
 
+
 # Lender can reject an applied loan
-@loan_bp.route('/<int:id>/reject', methods=['PATCH'])
+@loan_bp.route('/<int:id>/reject', methods=['PATCH', 'OPTIONS'])
 @cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def reject_loan(id):
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+        response.headers.add("Access-Control-Allow-Methods", "PATCH, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        return response
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
     try:
-        loan = Loan.query.get_or_404(id)
-        
-        # Restrict that only loan-specific assigned lender can reject
-        current_user_id = int(get_jwt_identity().split(':')[0])
-        user = User.query.get(current_user_id)
-        if loan.lender_id != current_user_id and user.role != 'admin':
-            return jsonify({'error': 'You can only reject your own loans'}), 403
-
         data = request.get_json()
         rejected_reason = data.get('rejected_reason', '')
+
+        loan = Loan.query.get_or_404(id)
 
         if loan.status != LoanStatus.pending:
             return jsonify({'error': 'You can only reject a pending loan'}), 400
@@ -315,73 +338,85 @@ def reject_loan(id):
         db.session.rollback()
         return jsonify({'error': 'Failed to reject loan application', 'message': str(e)}), 500
 
+
 # Lender/admin can disburse loans after approval
-@loan_bp.route('/<int:id>/disburse', methods=['PATCH'])
+@loan_bp.route('/<int:id>/disburse', methods=['PATCH', 'OPTIONS'])
 @cross_origin()
 @jwt_required()
 @role_required(['admin', 'lender'])
 def disburse_loan(id):
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+        response.headers.add("Access-Control-Allow-Methods", "PATCH, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        return response
+    from flask_jwt_extended import verify_jwt_in_request
     try:
+        # Call verify_jwt_in_request before any JWT identity access
+        verify_jwt_in_request()
         loan = Loan.query.get_or_404(id)
-
-        #Restriction that only loan-specific assigned user can disburse
-        current_user_id = int(get_jwt_identity().split(':')[0])
-        user = User.query.get(current_user_id)
-        if loan.lender_id != current_user_id and user.role != 'admin':
-            return jsonify({'error': 'You can only disburse your own loans'}), 403
 
         if loan.status != LoanStatus.approved:
             return jsonify({'error': 'You can only disburse approved loan'}), 400
 
         loan.status = LoanStatus.disbursed
         loan.issued_date = datetime.utcnow()
-        
-        # Generate repayment schedule based on loan product terms
-        from utils.repayment_status import generate_repayment_schedule
-        schedules = generate_repayment_schedule(loan)
-        for schedule in schedules:
-            db.session.add(schedule)
+
         db.session.commit()
-        return jsonify({
-            'message': 'Loan disbursed and repayment schedule created',
-            'loan': loan.to_dict(rules=(
-                '-repayments', '-lender', '-borrower', '-loan_product',
-                'repayment_schedules.id',
-                'repayment_schedules.due_date',
-                'repayment_schedules.amount_due',
-                'repayment_schedules.status'
-            ))
-        }), 200
+        return jsonify(loan.to_dict()), 200
 
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': 'Failed to disburse the loan', 'message': str(e)}), 500
 
-# mark a loan as complete after all repayments
-@loan_bp.route('/<int:id>/complete', methods=['PATCH'])
-@cross_origin()
+
+@loan_bp.route('/repayments', methods=['GET'])
 @jwt_required()
-@role_required('lender')
-def complete_loan(id):
-    loan = Loan.query.get_or_404(id)
-    if loan.status != LoanStatus.disbursed:
-        return jsonify({'error': 'Only disbursed loans can be marked as complete'}), 400
+@role_required(['admin', 'lender', 'customer'])
+def get_repayments():
+    import traceback
+    try:
+        user_id = int(get_jwt_identity().split(':')[0])
+        print(f"get_repayments: user_id={user_id}")
+        user = User.query.get(user_id)
+        print(f"get_repayments: user={user}")
 
-    unpaid = RepaymentSchedule.query.filter_by(loan_id=id, status=RepaymentStatus.UNPAID).count()
-    if unpaid > 0:
-        return jsonify({'error': 'Loan still has unpaid installments'}), 400
+        if not user:
+            print("get_repayments: User not found")
+            return jsonify({'error': 'User not found'}), 404
 
-    loan.status = LoanStatus.completed
-    db.session.commit()
-    return jsonify({'message': 'Loan marked as complete'}), 200
+        if user.role in ['admin', 'lender']:
+            print("get_repayments: role is admin or lender")
+            repayments = RepaymentSchedule.query.all()
+        elif user.role == 'customer':
+            print("get_repayments: role is customer")
+            # Fix: filter by Loan.customer_id matching user_id, not user.id
+            repayments = RepaymentSchedule.query.join(Loan).filter(Loan.customer_id == user_id).all()
+            print(f"get_repayments: repayments count={len(repayments)}")
 
-# OPTIONS handlers for CORS preflight
-@loan_bp.route('', methods=['OPTIONS'])
-@cross_origin()
-def loan_options():
-    return '', 204
+        repayments_dicts = []
+        for repayment in repayments:
+            try:
+                repayments_dicts.append({
+                    'id': repayment.id,
+                    'loan_id': repayment.loan_id,
+                    'due_date': repayment.due_date.isoformat() if repayment.due_date else None,
+                    'amount_due': repayment.amount_due,
+                    'status': repayment.status.value if repayment.status else None,
+                    'loan': repayment.loan.to_dict() if repayment.loan else None
+                })
+            except Exception as e:
+                print(f"Error serializing repayment id {repayment.id}: {e}")
 
+        print(f"get_repayments: returning {len(repayments_dicts)} repayments")
+        return jsonify(repayments_dicts), 200
 
-@loan_product_bp.route('', methods=['OPTIONS'])
-@cross_origin()
-def loan_product_options():
-    return '', 204
+    except Exception as e:
+        print("Exception in get_repayments:")
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Unable to fetch repayments',
+            'message': str(e),
+            'traceback': traceback.format_exc()
+        }), 500

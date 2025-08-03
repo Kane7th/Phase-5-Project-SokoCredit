@@ -19,7 +19,29 @@ def create_app(config="config.default_config.DefaultConfig"):
         if request.method in ['POST', 'PUT', 'PATCH']:
             print(f"Body: {request.get_data()}")
 
-    CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True, methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "content-type", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Content-type", "Content-Type", "Content-Type"])
+    # Remove previous CORS configurations and use a single comprehensive configuration
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": "http://localhost:5173",
+            "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "content-type", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"],
+            "supports_credentials": True,
+            "expose_headers": ["Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "Access-Control-Allow-Headers", "Access-Control-Allow-Methods"],
+            "max_age": 86400
+        }
+    })
+
+    # Global OPTIONS handler to ensure CORS headers on preflight requests
+    @app.before_request
+    def handle_options_requests():
+        if request.method == 'OPTIONS':
+            response = jsonify({})
+            response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+            response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+            response.headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, Accept")
+            response.headers.add("Access-Control-Allow-Credentials", "true")
+            response.headers.add("Access-Control-Max-Age", "86400")
+            return response
 
     # Init extensions
     db.init_app(app)
@@ -52,18 +74,24 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
     from app.routes.loan_routes import loan_bp, loan_product_bp
+    # from app.routes.loan_comment_routes import loan_comment_bp
     from app.routes.repayment_routes import repayment_bp
-    from app.routes.paypal.paypal_route import paypal_bp
+    from app.routes.mpesa.test_mpesa_route import test_bp
+    from app.routes.mpesa.views import mpesa_bp
+    from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
     from app.routes.admin_routes import admin_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(customers_bp, url_prefix='/api/customers')
-    app.register_blueprint(loan_bp)
-    app.register_blueprint(loan_product_bp)
-    app.register_blueprint(repayment_bp)
-    app.register_blueprint(paypal_bp)
+    app.register_blueprint(loan_bp, url_prefix='/api/loans')
+    app.register_blueprint(loan_product_bp, url_prefix='/api/loan-products')
+    # app.register_blueprint(loan_comment_bp, url_prefix='/api/loan-comments')
+    app.register_blueprint(repayment_bp, url_prefix='/api/repayments')
+    app.register_blueprint(test_bp)
+    app.register_blueprint(mpesa_bp)
+    app.register_blueprint(callback_bp)
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')

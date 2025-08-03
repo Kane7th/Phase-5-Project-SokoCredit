@@ -12,6 +12,23 @@ from datetime import datetime
 
 customers_bp = Blueprint('customers', __name__)
 
+@customers_bp.route("/by-user/<int:user_id>", methods=["GET"])
+@jwt_required()
+@role_required(["admin", "lender", "customer"])
+def get_customer_by_user(user_id):
+    current_user_id, role = extract_identity()
+    if current_user_id != user_id and role not in ["admin", "lender"]:
+        return jsonify({"msg": "Not authorized to view this customer"}), 403
+
+    customer = Customer.query.filter_by(customer_user_id=user_id).first()
+    if not customer:
+        # Try to find customer created by this user as fallback
+        customer = Customer.query.filter_by(created_by=user_id).first()
+        if not customer:
+            return jsonify({"msg": "Customer profile not found"}), 404
+
+    return jsonify(format_customer(customer)), 200
+
 def extract_identity():
     identity = get_jwt_identity()
     user_id_str, role = identity.split(":")
@@ -66,26 +83,11 @@ def create_customer():
     data = request.get_json()
     user_id, role = extract_identity()
 
-    # Fetch user record to reuse fields if role is customer
-    from app.models.user import User  # Ensure this import works based on your structure
-    user = User.query.get(user_id)
-
-    if not data.get("phone") and not (user and user.phone):
-        return jsonify({"msg": "Phone is required"}), 400
-
-    # Build full name
-    full_name = data.get("full_name")
-    if not full_name and user:
-        full_name = f"{user.first_name or ''} {user.middle_name or ''} {user.last_name or ''}".strip()
-
-    if not full_name:
-        return jsonify({"msg": "Full name is required"}), 400
-
-    phone = data.get("phone") or user.phone
-    email = data.get("email") or user.email
+    if not data.get("full_name") or not data.get("phone"):
+        return jsonify({"msg": "Full name and phone are required"}), 400
 
     # Ensure unique phone
-    if Customer.query.filter_by(phone=phone).first():
+    if Customer.query.filter_by(phone=data["phone"]).first():
         return jsonify({"msg": "Phone number already exists"}), 409
 
     # Enforce that customer can only create their own profile once
@@ -99,9 +101,9 @@ def create_customer():
             return jsonify({"msg": "customer_user_id is required for admin/lender"}), 400
 
     customer_kwargs = {
-        "full_name": full_name,
-        "phone": phone,
-        "email": email,
+        "full_name": data["full_name"],
+        "phone": data["phone"],
+        "email": data.get("email"),
         "business_name": data.get("business_name"),
         "location": data.get("location"),
         "documents": data.get("documents", {}),
@@ -117,7 +119,6 @@ def create_customer():
     print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
 
     return jsonify({"msg": "Customer created", "id": customer.id}), 201
-
 
 @customers_bp.route("/", methods=["GET"])
 @jwt_required()
@@ -210,10 +211,20 @@ def get_customer(customer_id):
 
     return jsonify(format_customer(customer)), 200
 
-@customers_bp.route("/my_customers", methods=["GET"])
+from flask_cors import cross_origin
+
+@customers_bp.route("/my_customers", methods=["GET", "OPTIONS"])
+@cross_origin()
 @jwt_required()
-# @role_required(["admin", "lender"])
+@role_required(["admin", "lender"])
 def get_my_customers():
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Methods", "GET, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        return response
+        
     identity = get_jwt_identity()
     print(f"DEBUG: JWT identity received: {identity}")
     # Try to parse user_id from identity string
@@ -232,10 +243,17 @@ def get_my_customers():
         print(f"Error parsing user_id from identity: {e}")
         return jsonify({"msg": "Invalid user identity format"}), 400
 
-    customers = Customer.query.filter_by(lender_id=user_id).all()
+    # Check if lender_id query parameter is provided
+    lender_id = request.args.get('lender_id', type=int)
+    if lender_id:
+        customers = Customer.query.filter_by(lender_id=lender_id).all()
+        print(f"[AUDIT LOG] User {user_id} listed customers for lender {lender_id} at {datetime.utcnow().isoformat()}.")
+        print(f"DEBUG: Found {len(customers)} customers for lender_id {lender_id}")
+    else:
+        customers = Customer.query.filter_by(lender_id=user_id).all()
+        print(f"[AUDIT LOG] User {user_id} listed their own customers at {datetime.utcnow().isoformat()}.")
+        print(f"DEBUG: Found {len(customers)} customers for lender_id {user_id}")
 
-    # Audit log for listing own customers 
-    print(f"[AUDIT LOG] User {user_id} listed their own customers at {datetime.utcnow().isoformat()}.")
     return jsonify([c.to_dict() for c in customers])
 
 @customers_bp.route("/<int:customer_id>", methods=["PATCH"])

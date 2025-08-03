@@ -80,7 +80,7 @@ with app.app_context():
     db.session.add_all([product1, product2, product3])
     db.session.commit()
 
-    print("\n💳 Loan Products created:")
+    print("\n Loan Products created:")
     for p in [product1, product2, product3]:
         print(f"   - {p.name} ({p.frequency}) by Lender ID {p.lender_id}")
 
@@ -186,6 +186,7 @@ with app.app_context():
                         payment_method=PaymentMethod.CASH
                     )
                     db.session.add(repayment)
+                    db.session.flush()
                     total_repayments += 1
 
             update_loan_status(loan.id)
@@ -193,6 +194,6 @@ with app.app_context():
 
     db.session.commit()
 
-    print(f"\n📆 Repayment Schedules Created: {total_schedules}")
-    print(f"💰 Repayments Created: {total_repayments}")
+    print(f"\n Repayment Schedules Created: {total_schedules}")
+    print(f" Repayments Created: {total_repayments}")
     print("\n✅ Seeding complete with clean loan logic.\n")
