@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models.customer import Customer
@@ -9,9 +9,19 @@ import io
 import openpyxl
 from openpyxl.utils import get_column_letter
 from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
+from app.models.notification import Notification
+from app.models.user import User
+from utils.sms_service import send_sms
 
 customers_bp = Blueprint('customers', __name__)
 
+<<<<<<< HEAD
+UPLOAD_FOLDER = "uploads/customers"
+
+# Helpers
+=======
 @customers_bp.route("/by-user/<int:user_id>", methods=["GET"])
 @jwt_required()
 @role_required(["admin", "lender", "customer"])
@@ -29,6 +39,7 @@ def get_customer_by_user(user_id):
 
     return jsonify(format_customer(customer)), 200
 
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 def extract_identity():
     identity = get_jwt_identity()
     user_id_str, role = identity.split(":")
@@ -76,6 +87,12 @@ def generate_excel(customers):
     output.seek(0)
     return output.read()
 
+# Check if file is allowed
+def allowed_file(filename):
+    allowed_exts = {"pdf", "jpg", "jpeg", "png"}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
+
+# Routes
 @customers_bp.route("/", methods=["POST"])
 @jwt_required()
 @role_required(["admin", "lender", "customer"])
@@ -83,14 +100,31 @@ def create_customer():
     data = request.get_json()
     user_id, role = extract_identity()
 
+<<<<<<< HEAD
+    user = User.query.get(user_id)
+    if not data.get("phone") and not (user and user.phone):
+        return jsonify({"msg": "Phone is required"}), 400
+
+    full_name = data.get("full_name")
+    if not full_name and user:
+        full_name = f"{user.first_name or ''} {user.middle_name or ''} {user.last_name or ''}".strip()
+
+    if not full_name:
+        return jsonify({"msg": "Full name is required"}), 400
+
+    phone = data.get("phone") or user.phone
+    email = data.get("email") or user.email
+
+    if Customer.query.filter_by(phone=phone).first():
+=======
     if not data.get("full_name") or not data.get("phone"):
         return jsonify({"msg": "Full name and phone are required"}), 400
 
     # Ensure unique phone
     if Customer.query.filter_by(phone=data["phone"]).first():
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
         return jsonify({"msg": "Phone number already exists"}), 409
 
-    # Enforce that customer can only create their own profile once
     if role == "customer":
         if Customer.query.filter_by(customer_user_id=user_id).first():
             return jsonify({"msg": "You already have a profile"}), 409
@@ -100,6 +134,18 @@ def create_customer():
         if not customer_user_id:
             return jsonify({"msg": "customer_user_id is required for admin/lender"}), 400
 
+<<<<<<< HEAD
+    customer = Customer(
+        full_name=full_name,
+        phone=phone,
+        email=email,
+        business_name=data.get("business_name"),
+        location=data.get("location"),
+        documents=data.get("documents", {}),
+        created_by=user_id,
+        customer_user_id=customer_user_id
+    )
+=======
     customer_kwargs = {
         "full_name": data["full_name"],
         "phone": data["phone"],
@@ -112,14 +158,20 @@ def create_customer():
     }
 
     customer = Customer(**customer_kwargs)
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
     db.session.add(customer)
     db.session.commit()
 
-    print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
+    Notification.create_notification(user_id=user_id, message=f"Customer profile created for {full_name}.")
+    if user and user.phone:
+        send_sms(user.phone, f"SokoCredit: Your customer profile '{full_name}' has been created.")
 
+    print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
     return jsonify({"msg": "Customer created", "id": customer.id}), 201
 
+<<<<<<< HEAD
+=======
 @customers_bp.route("/", methods=["GET"])
 @jwt_required()
 @role_required(["admin", "lender"])
@@ -256,6 +308,7 @@ def get_my_customers():
 
     return jsonify([c.to_dict() for c in customers])
 
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 @customers_bp.route("/<int:customer_id>", methods=["PATCH"])
 @jwt_required()
 @role_required(["admin", "lender", "customer"])
@@ -275,16 +328,18 @@ def patch_customer(customer_id):
         if field in data:
             setattr(customer, field, data[field])
 
-    # Enforce phone uniqueness
     if "phone" in data:
         existing = Customer.query.filter(Customer.phone == data["phone"], Customer.id != customer.id).first()
         if existing:
             return jsonify({"msg": "Phone number already exists for another customer"}), 409
 
-    # Audit log for updating customer
-    print(f"[AUDIT LOG] User {user_id} ({role}) updated customer {customer.id} at {datetime.utcnow().isoformat()}.")
-
     db.session.commit()
+
+    Notification.create_notification(user_id=user_id, message=f"Customer #{customer.id} updated.")
+    if role == "customer" and customer.phone:
+        send_sms(customer.phone, f"SokoCredit: Your profile has been updated.")
+
+    print(f"[AUDIT LOG] User {user_id} ({role}) updated customer {customer.id} at {datetime.utcnow().isoformat()}.")
     return jsonify({"msg": "Customer updated", "customer": format_customer(customer)}), 200
 
 @customers_bp.route("/<int:customer_id>", methods=["DELETE"])
@@ -297,67 +352,14 @@ def delete_customer(customer_id):
     if not is_authorized(customer, user_id, role):
         return jsonify({"msg": "Not authorized to delete this customer"}), 403
 
-    # Audit log for deletion
-    print(f"[AUDIT LOG] User {user_id} ({role}) deleted customer {customer.id} at {datetime.utcnow().isoformat()}.")
+    Notification.create_notification(user_id=user_id, message=f"Customer #{customer.id} deleted.")
+    if customer.phone:
+        send_sms(customer.phone, f"SokoCredit: Your profile has been deleted.")
 
+    print(f"[AUDIT LOG] User {user_id} ({role}) deleted customer {customer.id} at {datetime.utcnow().isoformat()}.")
     db.session.delete(customer)
     db.session.commit()
     return '', 204
-
-@customers_bp.route("/dashboard-data", methods=["GET"])
-@jwt_required()
-@role_required(["admin", "lender", "customer"])
-def customer_dashboard_data():
-    from app.models.loan import Loan
-    from app.models.repayment import Repayment
-
-    user_id, role = extract_identity()
-
-    # Fetch customer details
-    customer = Customer.query.filter_by(customer_user_id=user_id).first()
-    if not customer:
-        return jsonify({"msg": "Customer profile not found"}), 404
-
-    # Fetch loans for customer
-    loans = Loan.query.filter_by(customer_id=customer.id).all()
-
-    # Fetch payments for customer
-    payments = Repayment.query.filter_by(customer_id=customer.id).all()
-
-    # Example credit profile and payment history data
-    creditProfile = {
-        "score": 700  # Placeholder score
-    }
-    paymentHistory = 95  # Placeholder percentage
-
-    data = {
-        "customer": {
-            "id": customer.id,
-            "full_name": customer.full_name,
-            "phone": customer.phone,
-            "business_name": customer.business_name,
-            "location": customer.location,
-            "documents": customer.documents
-        },
-        "loans": [loan.to_dict() for loan in loans],  # Assuming Loan model has to_dict()
-        "payments": [payment.to_dict() for payment in payments],  # Assuming Payment model has to_dict()
-        "creditProfile": creditProfile,
-        "paymentHistory": paymentHistory
-    }
-
-    return jsonify(data), 200
-
-# Check if file is allowed
-def allowed_file(filename):
-    allowed_exts = {"pdf", "jpg", "jpeg", "png"}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
-
-# Upload customer documents
-import os
-from werkzeug.utils import secure_filename
-from flask import current_app
-
-UPLOAD_FOLDER = "uploads/customers"
 
 @customers_bp.route("/<int:customer_id>/upload", methods=["POST"])
 @jwt_required()
@@ -373,16 +375,12 @@ def upload_customer_document(customer_id):
         return jsonify({"msg": "No file part"}), 400
 
     file = request.files['file']
-
     if file.filename == '':
         return jsonify({"msg": "No selected file"}), 400
-
     if not allowed_file(file.filename):
         return jsonify({"msg": "File type not allowed"}), 400
 
-
-    doc_type = request.form.get("doc_type", "unknown")  # e.g. "id_card", "business_permit"
-
+    doc_type = request.form.get("doc_type", "unknown")
     filename = secure_filename(file.filename)
     customer_dir = os.path.join(UPLOAD_FOLDER, str(customer_id))
     os.makedirs(customer_dir, exist_ok=True)
@@ -390,10 +388,16 @@ def upload_customer_document(customer_id):
     file_path = os.path.join(customer_dir, f"{doc_type}_{filename}")
     file.save(file_path)
 
-    # Update customer document reference
     customer.documents[doc_type] = file_path
     db.session.commit()
 
-    print(f"[AUDIT LOG] User {user_id} ({role}) uploaded '{doc_type}' for customer {customer.id} at {datetime.utcnow().isoformat()}.")
+    Notification.create_notification(user_id=user_id, message=f"Document '{doc_type}' uploaded for customer #{customer.id}.")
+    if customer.phone:
+        send_sms(customer.phone, f"SokoCredit: Your document '{doc_type}' has been uploaded.")
 
+<<<<<<< HEAD
+    print(f"[AUDIT LOG] User {user_id} ({role}) uploaded '{doc_type}' for customer {customer.id} at {datetime.utcnow().isoformat()}.")
     return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
+=======
+    return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0

@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils.decorators import role_required
 from utils.loan_status import update_loan_status, update_loan_amount_paid
 from utils.repayment_status import update_schedule_status, generate_repayment_schedule
 from app.extensions import db
-from app.models import RepaymentSchedule, Loan, Repayment, LoanProduct
+from app.models import RepaymentSchedule, Loan, Repayment, LoanProduct, Notification, User
 from app.models.repaymentSchedule import RepaymentStatus
 from app.models.repayment import PaymentMethod
+from utils.sms_service import send_sms
 
 from flask_cors import cross_origin
 repayment_bp = Blueprint('repayment_bp', __name__, url_prefix='/api/repayments')
@@ -25,9 +26,8 @@ def make_repayment():
         schedule_id = data.get("schedule_id")
         amount_paid = data.get("amount_paid")
         payment_methodtype = data.get("payment_method", "").strip().lower()
-        reference_code = data.get("reference_code", "").strip()  # Optional
+        reference_code = data.get("reference_code", "").strip()
 
-        # Validate required fields
         if not all([loan_id, schedule_id, amount_paid, payment_methodtype]):
             return jsonify({"error": "Missing required fields."}), 400
 
@@ -38,13 +38,11 @@ def make_repayment():
         except ValueError:
             return jsonify({"error": "Amount must be a valid number."}), 400
 
-       # Validate and convert payment method
         try:
             payment_method = PaymentMethod(payment_methodtype)
         except ValueError:
             return jsonify({"error": "Invalid payment method"}), 400
 
-        # Check duplicate reference code
         if reference_code:
             existing = Repayment.query.filter_by(reference_code=reference_code).first()
             if existing:
@@ -70,8 +68,8 @@ def make_repayment():
             payment_method=payment_method,
             amount_paid=amount_paid,
             reference_code=reference_code,
-            mpesa_code=reference_code if payment_method == 'mpesa' else None,
-            paypal_txn_id=reference_code if payment_method == 'paypal' else None,
+            mpesa_code=reference_code if payment_method == PaymentMethod.mpesa else None,
+            paypal_txn_id=reference_code if payment_method == PaymentMethod.paypal else None,
         )
         db.session.add(repayment)
         db.session.flush()
@@ -79,6 +77,25 @@ def make_repayment():
         update_schedule_status(schedule_id)
         update_loan_status(loan_id)
         update_loan_amount_paid(loan_id)
+
+        Notification.create_notification(
+            user_id=user_id,
+            message=f"Your repayment of KES {amount_paid:.2f} for Loan #{loan.id} was received."
+        )
+
+        customer = User.query.get(user_id)
+        if customer and customer.phone:
+            send_sms(customer.phone, f"SokoCredit: You paid KES {amount_paid:.2f} towards Loan #{loan.id}.")
+
+        if loan.lender_id:
+            Notification.create_notification(
+                user_id=loan.lender_id,
+                message=f"Customer #{user_id} made a repayment of KES {amount_paid:.2f} on Loan #{loan.id}."
+            )
+            lender = User.query.get(loan.lender_id)
+            if lender and lender.phone:
+                send_sms(lender.phone, f"SokoCredit: Customer #{user_id} repaid KES {amount_paid:.2f} on Loan #{loan.id}.")
+
         db.session.commit()
 
         return jsonify({
@@ -91,7 +108,7 @@ def make_repayment():
         print(f"[ERROR] Repayment failed: {e}")
         return jsonify({"error": "An unexpected error occurred while processing the repayment."}), 500
 
-# Customer GET all scheduled payments
+
 @repayment_bp.route('/schedules', methods=['GET'])
 @cross_origin()
 @jwt_required()
@@ -99,30 +116,50 @@ def make_repayment():
 def view_my_schedules():
     try:
         user_id = int(get_jwt_identity().split(':')[0])
-        # Fetch all schedules for loans belonging to this customer
         schedules = (
             RepaymentSchedule.query.join(Loan)
             .filter(Loan.customer_id == user_id)
             .order_by(RepaymentSchedule.due_date.asc()).all()
         )
 
-        result = [
-            {
+        result = []
+        now = datetime.utcnow()
+        for sched in schedules:
+            due_soon = sched.due_date.date() == now.date() + timedelta(days=1)
+            overdue = sched.due_date < now and sched.status != RepaymentStatus.PAID
+
+            if overdue:
+                Notification.create_notification(
+                    user_id=user_id,
+                    message=f"Your repayment for Loan #{sched.loan_id} scheduled on {sched.due_date.date()} is overdue."
+                )
+                customer = User.query.get(user_id)
+                if customer and customer.phone:
+                    send_sms(customer.phone, f"SokoCredit: Loan #{sched.loan_id} repayment is overdue.")
+            elif due_soon:
+                Notification.create_notification(
+                    user_id=user_id,
+                    message=f"Reminder: Your repayment for Loan #{sched.loan_id} is due tomorrow."
+                )
+                customer = User.query.get(user_id)
+                if customer and customer.phone:
+                    send_sms(customer.phone, f"SokoCredit: Reminder - Loan #{sched.loan_id} repayment is due tomorrow.")
+
+            result.append({
                 "id": sched.id,
                 "loan_id": sched.loan_id,
                 "due_date": sched.due_date.isoformat(),
                 "amount_due": sched.amount_due,
                 "status": sched.status.value,
-                "amount_paid": sum([r.amount_paid for r in sched.repayments])  # Assume one-to-many `repayments`
-            }
-            for sched in schedules
-        ]
+                "amount_paid": sum([r.amount_paid for r in sched.repayments])
+            })
+
         return jsonify(result), 200
     except Exception as e:
         print("Error viewing schedules:", e)
         return jsonify({"error": "Something went wrong while fetching schedules."}), 500
 
-# All users can see repayments (filtered)
+
 @repayment_bp.route('', methods=['GET'])
 @cross_origin()
 @jwt_required()
@@ -136,15 +173,10 @@ def view_loan_repayments():
             repayments = Repayment.query.filter_by(customer_id=user_id).order_by(Repayment.paid_at.desc()).all()
 
         elif role == 'lender':
-            # Get loan products created by this lender
             products = LoanProduct.query.filter_by(lender_id=user_id).all()
             product_ids = [p.id for p in products]
-
-            # Get loans under those products
             loans = Loan.query.filter(Loan.loan_product_id.in_(product_ids)).all()
             loan_ids = [l.id for l in loans]
-
-            # Repayments for those loans
             repayments = Repayment.query.filter(Repayment.loan_id.in_(loan_ids)).order_by(Repayment.paid_at.desc()).all()
 
         elif role == 'admin':
@@ -167,6 +199,8 @@ def view_loan_repayments():
 
     except Exception as e:
         return jsonify({'error': 'Failed to fetch repayments', 'message': str(e)}), 500
+<<<<<<< HEAD
+=======
 
 # CORS preflight OPTIONS route
 @repayment_bp.route('', methods=['OPTIONS'])
@@ -178,3 +212,4 @@ def repayments_options():
 @cross_origin()
 def schedules_options():
     return '', 204
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0

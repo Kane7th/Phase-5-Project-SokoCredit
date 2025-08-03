@@ -4,11 +4,13 @@ from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
-from app.models import Loan, User, RepaymentSchedule, LoanProduct
+from app.models import Loan, User, RepaymentSchedule, LoanProduct, Notification
 from app.models.loan import LoanStatus
 from app.models.loan_products import RepaymentFrequencies
 from app.models.repaymentSchedule import RepaymentStatus
 from utils.decorators import role_required
+from utils.repayment_status import generate_repayment_schedule
+from utils.sms_service import send_sms
 
 from flask_cors import cross_origin
 
@@ -20,7 +22,6 @@ def index():
     return jsonify({"message": "SokoCredit Loan running"})
 
 
-# CUSTOMER can apply for a loan
 @loan_bp.route('', methods=['POST'])
 @cross_origin()
 @jwt_required()
@@ -31,7 +32,7 @@ def apply_loan():
         data = request.get_json()
         product_id = data.get('loan_product_id')
         amount = data.get('amount')
-        
+
         if not all([product_id, amount]):
             return jsonify({'error': 'Missing required fields: loan_product_id, amount'}), 400
 
@@ -40,7 +41,6 @@ def apply_loan():
 
         customer_id = int(get_jwt_identity().split(':')[0])
 
-        # Check if customer has an active loan - cant apply if theres existing loan
         active_loan = Loan.query.filter(
             Loan.customer_id == customer_id,
             Loan.status.in_([LoanStatus.pending, LoanStatus.approved, LoanStatus.disbursed, LoanStatus.overdue])
@@ -49,7 +49,6 @@ def apply_loan():
         if active_loan:
             return jsonify({'error': 'You already have an active loan'}), 403
 
-        # constraint to correct loan product
         loan_product = LoanProduct.query.get(product_id)
         if not loan_product:
             return jsonify({'error': 'Selected loan product does not exist'}), 404
@@ -70,6 +69,15 @@ def apply_loan():
         db.session.add(new_loan)
         db.session.commit()
 
+        Notification.create_notification(
+            user_id=loan_product.lender_id,
+            message=f"New loan application submitted by customer #{customer_id} for KES {amount}"
+        )
+
+        lender = User.query.get(loan_product.lender_id)
+        if lender and lender.phone:
+            send_sms(lender.phone, f"SokoCredit: New loan application by customer #{customer_id} for KES {amount}.")
+
         return jsonify(new_loan.to_dict()), 201
 
     except SQLAlchemyError as e:
@@ -82,7 +90,11 @@ def apply_loan():
         traceback.print_exc()
         return jsonify({'error': 'Unexpected error', 'details': str(e)}), 500
 
+<<<<<<< HEAD
+
+=======
 # Users can view all loans
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 @loan_bp.route('', methods=['GET'])
 @cross_origin()
 @jwt_required()
@@ -110,6 +122,9 @@ def get_loans():
         return jsonify({'error': 'Unable to fetch requested loans', 'message': str(e)}), 500
 
 
+<<<<<<< HEAD
+@loan_bp.route('/<int:id>/approve', methods=['PATCH'])
+=======
 # GET all loan products (any user can view)
 @loan_product_bp.route('', methods=['GET'])
 @cross_origin()
@@ -254,6 +269,7 @@ def delete_loan_product(id):
 # A lender approves any applied loan
 @loan_bp.route('/<int:id>/approve', methods=['PATCH', 'OPTIONS'])
 @cross_origin()
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 @jwt_required()
 @role_required(['admin', 'lender'])
 def approve_loan(id):
@@ -267,6 +283,14 @@ def approve_loan(id):
     verify_jwt_in_request()
     try:
         loan = Loan.query.get_or_404(id)
+<<<<<<< HEAD
+
+        current_user_id = int(get_jwt_identity().split(':')[0])
+        user = User.query.get(current_user_id)
+        if loan.lender_id != current_user_id and user.role != 'admin':
+            return jsonify({'error': 'You can only approve your own loans'}), 403
+=======
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
         if loan.status != LoanStatus.pending:
             return jsonify({'error': 'No pending loans to approve'}), 400
@@ -289,7 +313,20 @@ def approve_loan(id):
 
         db.session.commit()
 
+        Notification.create_notification(
+            user_id=loan.customer_id,
+            message=f"Your loan application #{loan.id} has been approved."
+        )
+
+        customer = User.query.get(loan.customer_id)
+        if customer and customer.phone:
+            send_sms(customer.phone, f"SokoCredit: Your loan #{loan.id} has been approved!")
+
         return jsonify({
+<<<<<<< HEAD
+            'message': 'Loan approved',
+            'loan': loan.to_dict(rules=('-borrower', '-lender', '-repayments', '-loan_product'))
+=======
             'message': 'Loan approved and repayment schedule created',
             'loan': loan.to_dict(rules=(
                 '-borrower', '-lender', '-repayments', '-loan_product',
@@ -298,6 +335,7 @@ def approve_loan(id):
                 'repayment_schedules.amount_due',
                 'repayment_schedules.status'
             ))
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
         }), 200
 
     except Exception as e:
@@ -305,9 +343,13 @@ def approve_loan(id):
         return jsonify({'error': 'Failed to approve the loan', 'message': str(e)}), 500
 
 
+<<<<<<< HEAD
+@loan_bp.route('/<int:id>/reject', methods=['PATCH'])
+=======
 # Lender can reject an applied loan
 @loan_bp.route('/<int:id>/reject', methods=['PATCH', 'OPTIONS'])
 @cross_origin()
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 @jwt_required()
 @role_required(['admin', 'lender'])
 def reject_loan(id):
@@ -320,6 +362,15 @@ def reject_loan(id):
     from flask_jwt_extended import verify_jwt_in_request
     verify_jwt_in_request()
     try:
+<<<<<<< HEAD
+        loan = Loan.query.get_or_404(id)
+        current_user_id = int(get_jwt_identity().split(':')[0])
+        user = User.query.get(current_user_id)
+        if loan.lender_id != current_user_id and user.role != 'admin':
+            return jsonify({'error': 'You can only reject your own loans'}), 403
+
+=======
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
         data = request.get_json()
         rejected_reason = data.get('rejected_reason', '')
 
@@ -332,6 +383,16 @@ def reject_loan(id):
         loan.rejected_reason = rejected_reason
 
         db.session.commit()
+
+        Notification.create_notification(
+            user_id=loan.customer_id,
+            message=f"Your loan application #{loan.id} was rejected. Reason: {rejected_reason}"
+        )
+
+        customer = User.query.get(loan.customer_id)
+        if customer and customer.phone:
+            send_sms(customer.phone, f"SokoCredit: Your loan #{loan.id} was rejected. Reason: {rejected_reason}")
+
         return jsonify(loan.to_dict()), 200
 
     except Exception as e:
@@ -339,9 +400,13 @@ def reject_loan(id):
         return jsonify({'error': 'Failed to reject loan application', 'message': str(e)}), 500
 
 
+<<<<<<< HEAD
+@loan_bp.route('/<int:id>/disburse', methods=['PATCH'])
+=======
 # Lender/admin can disburse loans after approval
 @loan_bp.route('/<int:id>/disburse', methods=['PATCH', 'OPTIONS'])
 @cross_origin()
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 @jwt_required()
 @role_required(['admin', 'lender'])
 def disburse_loan(id):
@@ -356,22 +421,60 @@ def disburse_loan(id):
         # Call verify_jwt_in_request before any JWT identity access
         verify_jwt_in_request()
         loan = Loan.query.get_or_404(id)
+<<<<<<< HEAD
+        current_user_id = int(get_jwt_identity().split(':')[0])
+        user = User.query.get(current_user_id)
+        if loan.lender_id != current_user_id and user.role != 'admin':
+            return jsonify({'error': 'You can only disburse your own loans'}), 403
+=======
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
         if loan.status != LoanStatus.approved:
             return jsonify({'error': 'You can only disburse approved loan'}), 400
 
         loan.status = LoanStatus.disbursed
         loan.issued_date = datetime.utcnow()
+<<<<<<< HEAD
+        schedules = generate_repayment_schedule(loan)
+        for schedule in schedules:
+            db.session.add(schedule)
+        db.session.commit()
+
+        Notification.create_notification(
+            user_id=loan.customer_id,
+            message=f"Your loan #{loan.id} has been disbursed. Check your account for details."
+        )
+
+        customer = User.query.get(loan.customer_id)
+        if customer and customer.phone:
+            send_sms(customer.phone, f"SokoCredit: Your loan #{loan.id} has been disbursed. Start repaying on time.")
+
+        return jsonify({
+            'message': 'Loan disbursed and repayment schedule created',
+            'loan': loan.to_dict(rules=(
+                '-repayments', '-lender', '-borrower', '-loan_product',
+                'repayment_schedules.id',
+                'repayment_schedules.due_date',
+                'repayment_schedules.amount_due',
+                'repayment_schedules.status'
+            ))
+        }), 200
+=======
 
         db.session.commit()
         return jsonify(loan.to_dict()), 200
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to disburse the loan', 'message': str(e)}), 500
 
 
+<<<<<<< HEAD
+@loan_bp.route('/<int:id>/complete', methods=['PATCH'])
+=======
 @loan_bp.route('/repayments', methods=['GET'])
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 @jwt_required()
 @role_required(['admin', 'lender', 'customer'])
 def get_repayments():
@@ -386,6 +489,21 @@ def get_repayments():
             print("get_repayments: User not found")
             return jsonify({'error': 'User not found'}), 404
 
+<<<<<<< HEAD
+    loan.status = LoanStatus.completed
+    db.session.commit()
+
+    Notification.create_notification(
+        user_id=loan.customer_id,
+        message=f"Congratulations! Your loan #{loan.id} has been fully repaid and marked as complete."
+    )
+
+    customer = User.query.get(loan.customer_id)
+    if customer and customer.phone:
+        send_sms(customer.phone, f"SokoCredit: Loan #{loan.id} fully repaid. You're now debt free. 🎉")
+
+    return jsonify({'message': 'Loan marked as complete'}), 200
+=======
         if user.role in ['admin', 'lender']:
             print("get_repayments: role is admin or lender")
             repayments = RepaymentSchedule.query.all()
@@ -420,3 +538,4 @@ def get_repayments():
             'message': str(e),
             'traceback': traceback.format_exc()
         }), 500
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0

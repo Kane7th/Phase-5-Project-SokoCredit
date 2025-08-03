@@ -1,0 +1,81 @@
+.
+├── app
+│   ├── extensions.py
+│   ├── __init__.py
+│   ├── models
+│   │   ├── customer.py
+│   │   ├── __init__.py
+│   │   ├── loan_products.py
+│   │   ├── loan.py
+│   │   ├── notification.py
+│   │   ├── repayment.py
+│   │   ├── repaymentSchedule.py
+│   │   └── user.py
+│   ├── routes
+│   │   ├── analytics.py
+│   │   ├── auth.py
+│   │   ├── customers.py
+│   │   ├── dummy_data.py
+│   │   ├── loan_routes.py
+│   │   ├── mpesa
+│   │   ├── notifications.py
+│   │   ├── repayment_routes.py
+│   │   ├── sms_test.py
+│   │   └── users.py
+│   └── sockets
+│       ├── emitters.py
+│       └── notifications_socket.py
+├── config
+│   ├── default_config.py
+│   ├── __init__.py
+│   └── test_config.py
+├── instance
+├── Pipfile
+├── Pipfile.lock
+├── project-structure.txt
+├── requirements.txt
+├── run.py
+├── scripts
+│   └── create_customer_profiles.py
+├── seed.py
+├── sokocredit_db
+├── tests
+│   ├── conftest.py
+│   ├── How To Test Using Postman.MD
+│   ├── sokocredit_customer_api.postman_collection.json
+│   └── test_customers.py
+├── uploads
+│   └── customers
+│       └── 1
+├── utils
+│   ├── decorators.py
+│   ├── loan_status.py
+│   ├── repayment_status.py
+│   └── sms_service.py
+└── venv
+    ├── bin
+    │   ├── activate
+    │   ├── activate.csh
+    │   ├── activate.fish
+    │   ├── Activate.ps1
+    │   ├── alembic
+    │   ├── dotenv
+    │   ├── flask
+    │   ├── mako-render
+    │   ├── normalizer
+    │   ├── pip
+    │   ├── pip3
+    │   ├── pip3.12
+    │   ├── python -> python3
+    │   ├── python3 -> /usr/bin/python3
+    │   └── python3.12 -> python3
+    ├── include
+    │   ├── python3.12
+    │   └── site
+    ├── lib
+    │   └── python3.12
+    ├── lib64 -> lib
+    ├── pyvenv.cfg
+    └── README.md
+
+22 directories, 57 files

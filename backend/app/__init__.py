@@ -81,7 +81,12 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
+<<<<<<< HEAD
+    from app.models.notification import Notification
+    from app.routes.sms_test import sms_test_bp
+=======
     from app.routes.admin_routes import admin_bp
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(customers_bp, url_prefix='/api/customers')
@@ -92,10 +97,17 @@ def create_app(config="config.default_config.DefaultConfig"):
     app.register_blueprint(test_bp)
     app.register_blueprint(mpesa_bp)
     app.register_blueprint(callback_bp)
+<<<<<<< HEAD
+    app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(notifications_bp, url_prefix='/notifications')
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(sms_test_bp)
+=======
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+>>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
     # Import NotificationNamespace after socketio is ready
     from app.sockets.notifications_socket import NotificationNamespace
