@@ -19,19 +19,28 @@ def create_app(config="config.default_config.DefaultConfig"):
         if request.method in ['POST', 'PUT', 'PATCH']:
             print(f"Body: {request.get_data()}")
 
-    # Remove previous CORS configurations and use a single comprehensive configuration
+    # Single CORS configuration for /api/*
     CORS(app, resources={
         r"/api/*": {
             "origins": "http://localhost:5173",
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept", "content-type", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"],
+            "allow_headers": [
+                "Content-Type", "Authorization", "X-Requested-With", "Accept",
+                "content-type", "Origin", "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
+            ],
             "supports_credentials": True,
-            "expose_headers": ["Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "Access-Control-Allow-Headers", "Access-Control-Allow-Methods"],
+            "expose_headers": [
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Credentials",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
             "max_age": 86400
         }
     })
 
-    # Global OPTIONS handler to ensure CORS headers on preflight requests
+    # Global OPTIONS handler (preflight)
     @app.before_request
     def handle_options_requests():
         if request.method == 'OPTIONS':
@@ -48,17 +57,14 @@ def create_app(config="config.default_config.DefaultConfig"):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # Enable CORS for /api/* with correct origin and headers
+    # Ensure consistent CORS headers on responses
     def cors_after_request(response):
-        # Remove duplicate Access-Control-Allow-Credentials headers if any
-        if 'Access-Control-Allow-Credentials' in response.headers:
-            response.headers.pop('Access-Control-Allow-Credentials')
-        # Remove duplicate Access-Control-Allow-Origin headers if any
-        if 'Access-Control-Allow-Origin' in response.headers:
-            response.headers.pop('Access-Control-Allow-Origin')
-        # Remove duplicate Access-Control-Allow-Headers headers if any
-        if 'Access-Control-Allow-Headers' in response.headers:
-            response.headers.pop('Access-Control-Allow-Headers')
+        # Remove duplicates if any were set upstream
+        for h in ["Access-Control-Allow-Credentials",
+                  "Access-Control-Allow-Origin",
+                  "Access-Control-Allow-Headers"]:
+            if h in response.headers:
+                response.headers.pop(h)
         response.headers.add("Access-Control-Allow-Credentials", "true")
         response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept")
@@ -66,10 +72,10 @@ def create_app(config="config.default_config.DefaultConfig"):
 
     app.after_request(cors_after_request)
 
-    # Initialize socketio
+    # Socket.IO
     socketio.init_app(app, cors_allowed_origins="http://localhost:5173")
 
-    # Register Blueprints with /api prefix where applicable
+    # Blueprints
     from app.routes.customers import customers_bp
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
@@ -81,35 +87,31 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
-<<<<<<< HEAD
     from app.models.notification import Notification
     from app.routes.sms_test import sms_test_bp
-=======
     from app.routes.admin_routes import admin_bp
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
+    # Register with /api prefixes where applicable
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(customers_bp, url_prefix='/api/customers')
     app.register_blueprint(loan_bp, url_prefix='/api/loans')
     app.register_blueprint(loan_product_bp, url_prefix='/api/loan-products')
     # app.register_blueprint(loan_comment_bp, url_prefix='/api/loan-comments')
     app.register_blueprint(repayment_bp, url_prefix='/api/repayments')
+
+    # These appear to be top-level/test integrations (no /api prefix in your current setup)
     app.register_blueprint(test_bp)
     app.register_blueprint(mpesa_bp)
     app.register_blueprint(callback_bp)
-<<<<<<< HEAD
-    app.register_blueprint(users_bp, url_prefix='/users')
-    app.register_blueprint(notifications_bp, url_prefix='/notifications')
-    app.register_blueprint(analytics_bp)
     app.register_blueprint(sms_test_bp)
-=======
+
+    # API-prefixed user/notifications/analytics/admin routes
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
-    # Import NotificationNamespace after socketio is ready
+    # Sockets (after socketio init)
     from app.sockets.notifications_socket import NotificationNamespace
     socketio.on_namespace(NotificationNamespace('/notifications'))
 

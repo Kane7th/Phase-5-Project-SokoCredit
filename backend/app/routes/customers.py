@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, Response, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_cors import cross_origin
 from app.extensions import db
 from app.models.customer import Customer
 from utils.decorators import role_required
@@ -17,29 +18,10 @@ from utils.sms_service import send_sms
 
 customers_bp = Blueprint('customers', __name__)
 
-<<<<<<< HEAD
 UPLOAD_FOLDER = "uploads/customers"
 
-# Helpers
-=======
-@customers_bp.route("/by-user/<int:user_id>", methods=["GET"])
-@jwt_required()
-@role_required(["admin", "lender", "customer"])
-def get_customer_by_user(user_id):
-    current_user_id, role = extract_identity()
-    if current_user_id != user_id and role not in ["admin", "lender"]:
-        return jsonify({"msg": "Not authorized to view this customer"}), 403
+# ---------- Helpers ----------
 
-    customer = Customer.query.filter_by(customer_user_id=user_id).first()
-    if not customer:
-        # Try to find customer created by this user as fallback
-        customer = Customer.query.filter_by(created_by=user_id).first()
-        if not customer:
-            return jsonify({"msg": "Customer profile not found"}), 404
-
-    return jsonify(format_customer(customer)), 200
-
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 def extract_identity():
     identity = get_jwt_identity()
     user_id_str, role = identity.split(":")
@@ -87,44 +69,56 @@ def generate_excel(customers):
     output.seek(0)
     return output.read()
 
-# Check if file is allowed
 def allowed_file(filename):
     allowed_exts = {"pdf", "jpg", "jpeg", "png"}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
 
-# Routes
+# ---------- Routes ----------
+
+@customers_bp.route("/by-user/<int:user_id>", methods=["GET"])
+@jwt_required()
+@role_required(["admin", "lender", "customer"])
+def get_customer_by_user(user_id):
+    current_user_id, role = extract_identity()
+    if current_user_id != user_id and role not in ["admin", "lender"]:
+        return jsonify({"msg": "Not authorized to view this customer"}), 403
+
+    customer = Customer.query.filter_by(customer_user_id=user_id).first()
+    if not customer:
+        # Fallback: a profile created by this user
+        customer = Customer.query.filter_by(created_by=user_id).first()
+        if not customer:
+            return jsonify({"msg": "Customer profile not found"}), 404
+
+    return jsonify(format_customer(customer)), 200
+
 @customers_bp.route("/", methods=["POST"])
 @jwt_required()
 @role_required(["admin", "lender", "customer"])
 def create_customer():
-    data = request.get_json()
+    data = request.get_json() or {}
     user_id, role = extract_identity()
 
-<<<<<<< HEAD
     user = User.query.get(user_id)
+
+    # Validate phone & name (prefer user’s profile if request missing)
     if not data.get("phone") and not (user and user.phone):
         return jsonify({"msg": "Phone is required"}), 400
 
     full_name = data.get("full_name")
     if not full_name and user:
         full_name = f"{user.first_name or ''} {user.middle_name or ''} {user.last_name or ''}".strip()
-
     if not full_name:
         return jsonify({"msg": "Full name is required"}), 400
 
-    phone = data.get("phone") or user.phone
-    email = data.get("email") or user.email
-
-    if Customer.query.filter_by(phone=phone).first():
-=======
-    if not data.get("full_name") or not data.get("phone"):
-        return jsonify({"msg": "Full name and phone are required"}), 400
+    phone = data.get("phone") or (user.phone if user else None)
+    email = data.get("email") or (user.email if user else None)
 
     # Ensure unique phone
-    if Customer.query.filter_by(phone=data["phone"]).first():
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
+    if phone and Customer.query.filter_by(phone=phone).first():
         return jsonify({"msg": "Phone number already exists"}), 409
 
+    # Who is the customer profile for?
     if role == "customer":
         if Customer.query.filter_by(customer_user_id=user_id).first():
             return jsonify({"msg": "You already have a profile"}), 409
@@ -134,7 +128,6 @@ def create_customer():
         if not customer_user_id:
             return jsonify({"msg": "customer_user_id is required for admin/lender"}), 400
 
-<<<<<<< HEAD
     customer = Customer(
         full_name=full_name,
         phone=phone,
@@ -145,20 +138,6 @@ def create_customer():
         created_by=user_id,
         customer_user_id=customer_user_id
     )
-=======
-    customer_kwargs = {
-        "full_name": data["full_name"],
-        "phone": data["phone"],
-        "email": data.get("email"),
-        "business_name": data.get("business_name"),
-        "location": data.get("location"),
-        "documents": data.get("documents", {}),
-        "created_by": user_id,
-        "customer_user_id": customer_user_id
-    }
-
-    customer = Customer(**customer_kwargs)
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 
     db.session.add(customer)
     db.session.commit()
@@ -170,8 +149,6 @@ def create_customer():
     print(f"[AUDIT LOG] User {user_id} ({role}) created customer {customer.id} at {datetime.utcnow().isoformat()}.")
     return jsonify({"msg": "Customer created", "id": customer.id}), 201
 
-<<<<<<< HEAD
-=======
 @customers_bp.route("/", methods=["GET"])
 @jwt_required()
 @role_required(["admin", "lender"])
@@ -236,8 +213,7 @@ def list_customers():
         return Response(xlsx_data, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={
             "Content-Disposition": "attachment; filename=customers.xlsx"
         })
-    
-    # audit log for listing customers
+
     print(f"[AUDIT LOG] User {get_jwt_identity()} listed customers at {datetime.utcnow().isoformat()}.")
 
     # Paginate + return JSON
@@ -258,12 +234,9 @@ def get_customer(customer_id):
 
     if not is_authorized(customer, user_id, role):
         return jsonify({"msg": "Not authorized to view this customer"}), 403
-    
+
     print(f"[AUDIT LOG] User {user_id} ({role}) viewed customer {customer.id} at {datetime.utcnow().isoformat()}.")
-
     return jsonify(format_customer(customer)), 200
-
-from flask_cors import cross_origin
 
 @customers_bp.route("/my_customers", methods=["GET", "OPTIONS"])
 @cross_origin()
@@ -276,12 +249,11 @@ def get_my_customers():
         response.headers.add("Access-Control-Allow-Methods", "GET, OPTIONS")
         response.headers.add("Access-Control-Allow-Headers", "Authorization, Content-Type")
         return response
-        
+
     identity = get_jwt_identity()
     print(f"DEBUG: JWT identity received: {identity}")
-    # Try to parse user_id from identity string
+    # Parse user_id from identity string or int
     try:
-        # If identity is string like "15:lender", split by ":" and convert first part to int
         if isinstance(identity, str) and ":" in identity:
             user_id_str, role = identity.split(":")
             if user_id_str.startswith("user_"):
@@ -295,7 +267,6 @@ def get_my_customers():
         print(f"Error parsing user_id from identity: {e}")
         return jsonify({"msg": "Invalid user identity format"}), 400
 
-    # Check if lender_id query parameter is provided
     lender_id = request.args.get('lender_id', type=int)
     if lender_id:
         customers = Customer.query.filter_by(lender_id=lender_id).all()
@@ -308,12 +279,11 @@ def get_my_customers():
 
     return jsonify([c.to_dict() for c in customers])
 
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
 @customers_bp.route("/<int:customer_id>", methods=["PATCH"])
 @jwt_required()
 @role_required(["admin", "lender", "customer"])
 def patch_customer(customer_id):
-    data = request.get_json()
+    data = request.get_json() or {}
     user_id, role = extract_identity()
     customer = Customer.query.get_or_404(customer_id)
 
@@ -329,7 +299,10 @@ def patch_customer(customer_id):
             setattr(customer, field, data[field])
 
     if "phone" in data:
-        existing = Customer.query.filter(Customer.phone == data["phone"], Customer.id != customer.id).first()
+        existing = Customer.query.filter(
+            Customer.phone == data["phone"],
+            Customer.id != customer.id
+        ).first()
         if existing:
             return jsonify({"msg": "Phone number already exists for another customer"}), 409
 
@@ -395,9 +368,5 @@ def upload_customer_document(customer_id):
     if customer.phone:
         send_sms(customer.phone, f"SokoCredit: Your document '{doc_type}' has been uploaded.")
 
-<<<<<<< HEAD
     print(f"[AUDIT LOG] User {user_id} ({role}) uploaded '{doc_type}' for customer {customer.id} at {datetime.utcnow().isoformat()}.")
     return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
-=======
-    return jsonify({"msg": "File uploaded", "path": file_path, "documents": customer.documents}), 200
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0

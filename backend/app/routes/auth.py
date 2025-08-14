@@ -13,11 +13,11 @@ import secrets
 
 auth_bp = Blueprint('auth', __name__)
 
-phone_otps = {}  # Temporary in-memory store
-email_otps = {}  # Temporary in-memory store
-reset_tokens = {}  # Password reset token store
+phone_otps = {}   # Temporary in-memory store
+email_otps = {}   # Temporary in-memory store
+reset_tokens = {} # Password reset token store
 
-# Helper
+# ---------- Helpers ----------
 
 def extract_identity():
     identity = get_jwt_identity()
@@ -25,6 +25,8 @@ def extract_identity():
     user_id_str, role = identity.split(":")
     return int(user_id_str.replace("user_", "")), role
 
+
+# ---------- Routes ----------
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
@@ -35,7 +37,11 @@ def login():
     if not credential or not password:
         return jsonify({"msg": "Phone/email and password are required"}), 400
 
-    user = User.query.filter_by(email=credential).first() if "@" in credential else User.query.filter_by(phone=credential).first()
+    user = (
+        User.query.filter_by(email=credential).first()
+        if "@" in credential
+        else User.query.filter_by(phone=credential).first()
+    )
 
     if not user or not user.check_password(password):
         return jsonify({"msg": "Invalid credentials"}), 401
@@ -44,7 +50,7 @@ def login():
     access_token = create_access_token(identity=identity)
     refresh_token = create_refresh_token(identity=identity)
 
-    Notification.create_notification(user.id, f"🔓 Login successful.")
+    Notification.create_notification(user.id, "🔓 Login successful.")
     if user.phone:
         send_sms(user.phone, "SokoCredit: You have successfully logged in.")
 
@@ -69,7 +75,7 @@ def get_profile():
 
 @auth_bp.route("/register", methods=["POST"])
 def register_user():
-    data = request.get_json()
+    data = request.get_json() or {}
     first_name = data.get("first_name")
     middle_name = data.get("middle_name")
     last_name = data.get("last_name")
@@ -107,17 +113,10 @@ def register_user():
     if phone:
         send_sms(phone, f"SokoCredit: Welcome {username}! Your account is ready.")
 
+    # If user is a customer: create their customer profile AND notify admins/lenders
     if role == "customer":
-<<<<<<< HEAD
-        message = f"👤 New customer registered: {first_name} {last_name}"
-        admin_lender_users = User.query.filter(User.role.in_(["admin", "lender"])).all()
-
-        for recipient in admin_lender_users:
-            notif = Notification.create_notification(recipient.id, message)
-            socketio.emit(f"notification:{recipient.id}", notif.to_dict(), namespace="/notifications")
-=======
-        # Create customer profile automatically
         from app.models.customer import Customer
+
         customer = Customer(
             full_name=f"{first_name} {last_name}",
             phone=phone,
@@ -127,7 +126,17 @@ def register_user():
         )
         db.session.add(customer)
         db.session.commit()
->>>>>>> 99e5205a91df05ed5dd41c5fe54ea99ce22f6ce0
+
+        # Notify admins and lenders via in-app + socket
+        message = f"👤 New customer registered: {first_name} {last_name}"
+        admin_lender_users = User.query.filter(User.role.in_(["admin", "lender"])).all()
+        for recipient in admin_lender_users:
+            notif = Notification.create_notification(recipient.id, message)
+            try:
+                socketio.emit(f"notification:{recipient.id}", notif.to_dict(), namespace="/notifications")
+            except Exception as e:
+                # Avoid failing the request if socket emit has an issue
+                print(f"[SOCKET EMIT ERROR] {e}")
 
         return jsonify({
             "msg": "Customer registered and profile created.",
@@ -157,7 +166,7 @@ def refresh_token():
 
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
-    data = request.get_json()
+    data = request.get_json() or {}
     email_or_phone = data.get("email") or data.get("phone")
 
     if not email_or_phone:
@@ -180,7 +189,7 @@ def forgot_password():
 
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get("token")
     new_password = data.get("new_password")
 
@@ -213,7 +222,7 @@ def verify_phone():
     user_id, role = extract_identity()
     user = User.query.get(user_id)
 
-    data = request.get_json()
+    data = request.get_json() or {}
     phone = data.get("phone")
     otp = data.get("otp")
 
@@ -242,7 +251,7 @@ def verify_phone():
 @auth_bp.route("/send-phone-otp", methods=["POST"])
 @jwt_required()
 def send_phone_otp():
-    data = request.get_json()
+    data = request.get_json() or {}
     phone = data.get("phone")
 
     if not phone:
@@ -261,7 +270,7 @@ def verify_email():
     user_id, role = extract_identity()
     user = User.query.get(user_id)
 
-    data = request.get_json()
+    data = request.get_json() or {}
     email = data.get("email")
     otp = data.get("otp")
 
@@ -287,7 +296,7 @@ def verify_email():
 @auth_bp.route("/send-email-otp", methods=["POST"])
 @jwt_required()
 def send_email_otp():
-    data = request.get_json()
+    data = request.get_json() or {}
     email = data.get("email")
 
     if not email:
