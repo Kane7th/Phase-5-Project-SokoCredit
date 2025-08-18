@@ -5,7 +5,7 @@ export const customerService = {
   // Removed listCustomers method to prevent customers from viewing all customers
 
   getCustomerByUser: async (userId) => {
-    const response = await api.get(`/api/customers/by-user/${userId}`)
+    const response = await api.get('/api/customers/dashboard-data')
     console.log('customerService.getCustomerByUser response:', response)
     return response
   },
