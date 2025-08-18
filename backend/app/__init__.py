@@ -16,7 +16,19 @@ def create_app(config="config.default_config.DefaultConfig"):
     jwt.init_app(app)
 
     # Enable CORS
-    CORS(app, resources={r"/api/auth/*": {"origins": "http://localhost:5173"}, r"/api/customers/*": {"origins": "http://localhost:5173"}})
+    CORS(app, resources={
+        r"/api/auth/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/customers/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/loans/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/repayments/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/mpesa/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/admin/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/loan-products/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/users/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/notifications/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/analytics/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/customers/by-user/*": {"origins": "http://localhost:5173", "supports_credentials": True}
+    })
 
     # Initialize socketio
     socketio.init_app(app)
@@ -32,19 +44,21 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
+    from app.routes.admin import admin_bp
     from app.models.notification import Notification
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(customers_bp, url_prefix='/api/customers')
     app.register_blueprint(loan_bp)
-    app.register_blueprint(loan_product_bp)
+    app.register_blueprint(loan_product_bp, url_prefix='/api/loan-products')
     app.register_blueprint(repayment_bp)
     app.register_blueprint(test_bp)
     app.register_blueprint(mpesa_bp)
     app.register_blueprint(callback_bp)
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(notifications_bp, url_prefix='/notifications')
-    app.register_blueprint(analytics_bp)
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    app.register_blueprint(admin_bp)
 
     # Import NotificationNamespace after socketio is ready
     from app.sockets.notifications_socket import NotificationNamespace
