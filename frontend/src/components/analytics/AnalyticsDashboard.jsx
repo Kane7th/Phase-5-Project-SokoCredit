@@ -15,10 +15,11 @@ import {
   Percent,
   Clock
 } from 'lucide-react'
-import PortofolioChart from './PortofolioChart'
+import PortfolioChart from './PortofolioChart'
 import CollectionChart from './CollectionChart'
 import RiskAnalysis from './RiskAnalysis'
-import CustomerSegmntation from './CustomerSegmntation'
+import CustomerSegmentation from './CustomerSegmntation'
+import { analyticsService } from '../../services/analyticsService'
 import '../../styles/analytics.css'
 
 const AnalyticsDashboard = () => {
@@ -40,21 +41,10 @@ const AnalyticsDashboard = () => {
     setIsLoading(true)
     setError(null)
     try {
-      const overviewRes = await fetch('/api/analytics/overview')
-      if (!overviewRes.ok) throw new Error('Failed to fetch overview data')
-      const overview = await overviewRes.json()
-
-      const performanceRes = await fetch('/api/analytics/performance')
-      if (!performanceRes.ok) throw new Error('Failed to fetch performance data')
-      const performance = await performanceRes.json()
-
-      const customersRes = await fetch('/api/analytics/customers')
-      if (!customersRes.ok) throw new Error('Failed to fetch customer analytics')
-      const customers = await customersRes.json()
-
-      const riskRes = await fetch('/api/analytics/risk')
-      if (!riskRes.ok) throw new Error('Failed to fetch risk analysis')
-      const risk = await riskRes.json()
+      const overview = await analyticsService.getOverview()
+      const performance = await analyticsService.getPerformance()
+      const customers = await analyticsService.getCustomerAnalytics()
+      const risk = await analyticsService.getRiskAnalysis()
 
       setAnalyticsData({
         overview,
@@ -223,14 +213,14 @@ const AnalyticsDashboard = () => {
                 </select>
               </div>
             </div>
-            <PortfolioChart data={performance.disbursed} />
+            <PortfolioChart data={performance.monthlyPerformance ? performance.monthlyPerformance.map(item => ({ month: item.month, amount: item.disbursed })) : []} />
           </div>
 
           <div className="chart-container">
             <div className="chart-header">
               <h3>Collection Performance</h3>
             </div>
-            <CollectionChart data={performance.collections} />
+            <CollectionChart data={performance.monthlyPerformance ? performance.monthlyPerformance.map(item => ({ month: item.month, target: item.disbursed, actual: item.repaid })) : []} />
           </div>
 
           <div className="chart-container">
