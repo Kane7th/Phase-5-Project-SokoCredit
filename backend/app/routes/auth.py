@@ -24,8 +24,22 @@ def login():
 
     user = User.query.filter_by(email=credential).first() if "@" in credential else User.query.filter_by(phone=credential).first()
 
+    # Debug logging
+    print(f"Login attempt for credential: {credential}")
+    if user:
+        print(f"Found user: id={user.id}, status={user.status}, password_hash={user.password_hash}")
+    else:
+        print("User not found")
+
+    # Check if user exists and password matches
     if not user or not user.check_password(password):
+        print("Invalid credentials")
         return jsonify({"msg": "Invalid credentials"}), 401
+
+    # Check if user status is active
+    if user.status != 'active':
+        print(f"User account not active: status={user.status}")
+        return jsonify({"msg": "User account is not active"}), 403
 
     identity = f"{user.id}:{user.role.lower()}"
     access_token = create_access_token(identity=identity)
@@ -81,7 +95,8 @@ def register_user():
         username=username,
         phone=phone,
         email=email,
-        role=role
+        role=role,
+        status='active'  # Automatically activate new users
     )
     user.set_password(password)
 
