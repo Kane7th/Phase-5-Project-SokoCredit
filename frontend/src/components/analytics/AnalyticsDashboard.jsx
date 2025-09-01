@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import api from '../../services/api'
 import { 
   TrendingUp, 
   DollarSign, 
@@ -214,7 +213,7 @@ const AnalyticsDashboard = () => {
                 </select>
               </div>
             </div>
-            <PortfolioChart data={performance.disbursed} />
+            <PortfolioChart data={performance.monthlyPerformance ? performance.monthlyPerformance.map(item => ({ month: item.month, amount: item.disbursed })) : []} />
           </div>
 
           <div className="chart-container">
@@ -263,7 +262,7 @@ const AnalyticsDashboard = () => {
             <div className="chart-header">
               <h3>Customer Segmentation</h3>
             </div>
-            <CustomerSegmntation data={customers} />
+            <CustomerSegmentation data={customers} />
           </div>
         </div>
       </div>
@@ -437,13 +436,7 @@ const AnalyticsDashboard = () => {
         {activeView === 'customers' && (
           <>
             <div className="customer-analytics">
-              {analyticsData.customers && analyticsData.customers.segments && analyticsData.customers.segments.length > 0 ? (
-                <CustomerSegmntation data={analyticsData.customers} selectedPeriod={selectedPeriod} />
-              ) : (
-                <div className="empty-state">
-                  <p>No customers data available.</p>
-                </div>
-              )}
+              <CustomerSegmentation data={analyticsData.customers} />
             </div>
           </>
         )}

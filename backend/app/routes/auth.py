@@ -5,28 +5,13 @@ from flask_jwt_extended import (
 )
 from app.extensions import db
 from app.models.user import User
-from app.models.notification import Notification
-from app import socketio
 from utils.decorators import role_required
-from utils.sms_service import send_sms
-import secrets
 
 auth_bp = Blueprint('auth', __name__)
 
-phone_otps = {}   # Temporary in-memory store
-email_otps = {}   # Temporary in-memory store
-reset_tokens = {} # Password reset token store
+phone_otps = {}  # Temporary in-memory store
+email_otps = {}  # Temporary in-memory store
 
-# ---------- Helpers ----------
-
-def extract_identity():
-    identity = get_jwt_identity()
-    print("DEBUG JWT identity:", identity)
-    user_id_str, role = identity.split(":")
-    return int(user_id_str.replace("user_", "")), role
-
-
-# ---------- Routes ----------
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
@@ -60,17 +45,15 @@ def login():
     access_token = create_access_token(identity=identity)
     refresh_token = create_refresh_token(identity=identity)
 
-    Notification.create_notification(user.id, "🔓 Login successful.")
-    if user.phone:
-        send_sms(user.phone, "SokoCredit: You have successfully logged in.")
-
     return jsonify(access_token=access_token, refresh_token=refresh_token), 200
 
 
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def get_profile():
-    user_id, role = extract_identity()
+    identity = get_jwt_identity()
+    user_id_str, role = identity.split(":")
+    user_id = int(user_id_str.replace("user_", ""))
     user = User.query.get(user_id)
 
     if not user:
@@ -85,7 +68,7 @@ def get_profile():
 
 @auth_bp.route("/register", methods=["POST"])
 def register_user():
-    data = request.get_json() or {}
+    data = request.get_json()
     first_name = data.get("first_name")
     middle_name = data.get("middle_name")
     last_name = data.get("last_name")
@@ -120,50 +103,25 @@ def register_user():
     db.session.add(user)
     db.session.commit()
 
-    Notification.create_notification(user.id, f"🎉 Welcome {username}! Your account has been created.")
-    if phone:
-        send_sms(phone, f"SokoCredit: Welcome {username}! Your account is ready.")
+    print(f"[AUDIT LOG] Registered user {user.id} ({role})")
 
-    # If user is a customer: create their customer profile AND notify admins/lenders
     if role == "customer":
-        from app.models.customer import Customer
-
-        customer = Customer(
-            full_name=f"{first_name} {last_name}",
-            phone=phone,
-            email=email,
-            customer_user_id=user.id,
-            created_by=user.id
-        )
-        db.session.add(customer)
-        db.session.commit()
-
-        # Notify admins and lenders via in-app + socket
-        message = f"👤 New customer registered: {first_name} {last_name}"
-        admin_lender_users = User.query.filter(User.role.in_(["admin", "lender"])).all()
-        for recipient in admin_lender_users:
-            notif = Notification.create_notification(recipient.id, message)
-            try:
-                socketio.emit(f"notification:{recipient.id}", notif.to_dict(), namespace="/notifications")
-            except Exception as e:
-                # Avoid failing the request if socket emit has an issue
-                print(f"[SOCKET EMIT ERROR] {e}")
-
         return jsonify({
-            "msg": "Customer registered and profile created.",
+            "msg": "Customer registered. Please complete your customer profile.",
             "user_id": user.id,
-            "customer_id": customer.id,
             "next": "/customers/"
         }), 201
 
-    return jsonify({"msg": "User registered successfully.", "user_id": user.id}), 201
+    return jsonify({
+        "msg": "User registered successfully.",
+        "user_id": user.id
+    }), 201
 
 
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
-    user_id, _ = extract_identity()
-    Notification.create_notification(user_id, "🚪 You have been logged out.")
+    jti = get_jwt()["jti"]
     return jsonify({"msg": "Successfully logged out"}), 200
 
 
@@ -175,9 +133,15 @@ def refresh_token():
     return jsonify(access_token=access_token), 200
 
 
+# Password Reset
+import secrets
+
+reset_tokens = {}
+
+
 @auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
-    data = request.get_json() or {}
+    data = request.get_json()
     email_or_phone = data.get("email") or data.get("phone")
 
     if not email_or_phone:
@@ -190,17 +154,17 @@ def forgot_password():
     token = secrets.token_urlsafe(32)
     reset_tokens[token] = user.id
 
-    Notification.create_notification(user.id, "🔐 A password reset was requested.")
-    if user.phone:
-        send_sms(user.phone, f"SokoCredit: Use this reset token: {token[:6]}... to reset your password")
-
     print(f"[RESET TOKEN] {user.email or user.phone} = {token}")
-    return jsonify({"msg": "Reset token generated. Please check your console (simulated send).", "token_preview": token[:6] + "..."}), 200
+
+    return jsonify({
+        "msg": "Reset token generated. Please check your console (simulated send).",
+        "token_preview": token[:5] + "..."
+    }), 200
 
 
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
-    data = request.get_json() or {}
+    data = request.get_json()
     token = data.get("token")
     new_password = data.get("new_password")
 
@@ -219,21 +183,19 @@ def reset_password():
     db.session.commit()
     reset_tokens.pop(token, None)
 
-    Notification.create_notification(user.id, "🔑 Your password was successfully reset.")
-    if user.phone:
-        send_sms(user.phone, f"SokoCredit: Your password was successfully changed.")
-
     print(f"[AUDIT LOG] Password reset for user {user.username} ({user.email})")
+
     return jsonify({"msg": "Password has been reset successfully"}), 200
 
 
+# Phone Verification
 @auth_bp.route("/verify-phone", methods=["POST"])
 @jwt_required()
 def verify_phone():
     user_id, role = extract_identity()
     user = User.query.get(user_id)
 
-    data = request.get_json() or {}
+    data = request.get_json()
     phone = data.get("phone")
     otp = data.get("otp")
 
@@ -251,18 +213,15 @@ def verify_phone():
     db.session.commit()
     phone_otps.pop(phone, None)
 
-    Notification.create_notification(user.id, "📱 Phone number verified.")
-    if user.phone:
-        send_sms(user.phone, f"SokoCredit: Your phone number has been verified.")
-
     print(f"[AUDIT LOG] User {user.username} verified phone {phone}")
+
     return jsonify({"msg": "Phone number verified successfully"}), 200
 
 
 @auth_bp.route("/send-phone-otp", methods=["POST"])
 @jwt_required()
 def send_phone_otp():
-    data = request.get_json() or {}
+    data = request.get_json()
     phone = data.get("phone")
 
     if not phone:
@@ -275,13 +234,14 @@ def send_phone_otp():
     return jsonify({"msg": f"OTP sent to {phone}"}), 200
 
 
+# Email Verification
 @auth_bp.route("/verify-email", methods=["POST"])
 @jwt_required()
 def verify_email():
     user_id, role = extract_identity()
     user = User.query.get(user_id)
 
-    data = request.get_json() or {}
+    data = request.get_json()
     email = data.get("email")
     otp = data.get("otp")
 
@@ -299,15 +259,15 @@ def verify_email():
     db.session.commit()
     email_otps.pop(email, None)
 
-    Notification.create_notification(user.id, "📧 Email verified.")
     print(f"[AUDIT LOG] User {user.username} verified email {email}")
+
     return jsonify({"msg": "Email verified successfully"}), 200
 
 
 @auth_bp.route("/send-email-otp", methods=["POST"])
 @jwt_required()
 def send_email_otp():
-    data = request.get_json() or {}
+    data = request.get_json()
     email = data.get("email")
 
     if not email:
