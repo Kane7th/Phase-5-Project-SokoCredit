@@ -68,18 +68,8 @@ const LoanApplicationForm = () => {
           setCustomers([])
           return
         }
-        const token = localStorage.getItem('access_token')
-        if (!token) {
-          console.warn('No access token found, skipping fetchCustomers')
-          return
-        }
-        const response = await fetch('/api/customers', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        const data = await response.json()
-        setCustomers(data.customers || [])
+        const response = await api.get('/api/customers')
+        setCustomers(response.customers || [])
       } catch (error) {
         console.error('Failed to fetch customers:', error)
       }
@@ -87,22 +77,12 @@ const LoanApplicationForm = () => {
 
     const fetchLoanProducts = async () => {
       try {
-        const token = localStorage.getItem('access_token')
-        if (!token) {
-          console.warn('No access token found, skipping fetchLoanProducts')
-          return
-        }
-        const response = await fetch('/api/loan-products', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        const data = await response.json()
-        console.log('Fetched loan products:', data)
-        setLoanProducts(data || [])
-        if (data && data.length > 0) {
-          setSelectedLoanProductId(data[0].id)
-          setValue('loan_type', data[0].id)
+        const response = await api.get('/api/loan-products')
+        console.log('Fetched loan products:', response)
+        setLoanProducts(response || [])
+        if (response && response.length > 0) {
+          setSelectedLoanProductId(response[0].id)
+          setValue('loan_type', response[0].id)
         } else {
           setSelectedLoanProductId('')
           setValue('loan_type', '')

@@ -23,9 +23,7 @@ class User(db.Model, SerializerMixin):
     email = db.Column(db.String(120), unique=True, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='customer', nullable=False)
-    status = db.Column(db.String(20), default='pending', nullable=False)
-
-    organisation = db.Column(db.String(100), nullable=True)
+    status = db.Column(db.String(20), default='pending', nullable=False)  # Added status field for approval
 
     # Loans where user is the borrower
     loans = db.relationship("Loan", foreign_keys="Loan.customer_id", back_populates="customer")
@@ -51,11 +49,14 @@ class User(db.Model, SerializerMixin):
         uselist=False
     )
 
+    # Loan products assigned to lender
+    loan_products = db.relationship('LoanProduct', back_populates='lender')
+
     def set_password(self, password):
         self.password_hash = pbkdf2_sha256.hash(password)
 
     def check_password(self, password):
         return pbkdf2_sha256.verify(password, self.password_hash)
 
-    def _repr_(self):
-        return f'<User id={self.id} username={self.username} role={self.role}>'
+    def __repr__(self):
+        return f'<User id={self.id} username={self.username} role={self.role} status={self.status}>'

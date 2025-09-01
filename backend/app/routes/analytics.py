@@ -6,218 +6,240 @@ from app.models.user import User
 from app.models.customer import Customer
 from app.models.loan import Loan
 from app.models.repayment import Repayment
-from sqlalchemy import func
-from app.models.notification import Notification
+from app.models.loan_products import LoanProduct
+from sqlalchemy import func, case, and_, extract
+from datetime import datetime
 
-# LoanProduct import can vary by project layout; try common paths
-try:
-    from app.models.loan_products import LoanProduct  # plural module
-except Exception:
-    try:
-        from app.models.loan_product import LoanProduct  # singular module
-    except Exception:
-        from app.models import LoanProduct  # fallback if exported at package level
+analytics_bp = Blueprint('analytics', __name__)
 
-analytics_bp = Blueprint('analytics_bp', __name__)
-
-# -------- OVERVIEW --------
+# OVERVIEW
 @analytics_bp.route('/overview', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
-def overview():
-    """
-    High-level KPIs. Uses real aggregates where possible, with safe fallbacks.
-    """
-    # Totals
-    total_disbursed = db.session.query(func.coalesce(func.sum(Loan.amount), 0)).scalar() or 0
-    total_repaid = db.session.query(func.coalesce(func.sum(Repayment.amount), 0)).scalar() or 0
-
-    # Active/Default counts
+def get_overview():
+    total_revenue = db.session.query(func.sum(Repayment.amount_paid)).scalar() or 0
+    total_disbursed = db.session.query(func.sum(Loan.amount)).scalar() or 0
+    total_repaid = total_revenue
     active_loans = db.session.query(Loan).filter(Loan.status == 'active').count()
     defaulted_loans = db.session.query(Loan).filter(Loan.status == 'defaulted').count()
-    default_rate = (defaulted_loans / active_loans * 100.0) if active_loans else 0.0
+    
+    # SQLite-compatible way to get customers created this month
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    new_customers_this_month = db.session.query(Customer).filter(
+        extract('month', Customer.created_at) == current_month,
+        extract('year', Customer.created_at) == current_year
+    ).count()
 
-    # New customers this month
-    # If you have created_at on Customer, use it; otherwise fallback to 0
-    try:
-        from datetime import datetime
-        start_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        new_customers_this_month = db.session.query(Customer).filter(Customer.created_at >= start_month).count()
-    except Exception:
-        new_customers_this_month = 0
-
-    # Average loan size
-    avg_loan_size = db.session.query(func.coalesce(func.avg(Loan.amount), 0)).scalar() or 0
-
-    # Collection rate (rough): repaid / disbursed capped to 100
-    collection_rate = float(min(100.0, (total_repaid / total_disbursed * 100.0) if total_disbursed else 0.0))
-
-    Notification.create_notification(None, "📊 Overview data accessed.")
+    default_rate = (defaulted_loans / active_loans * 100) if active_loans > 0 else 0
 
     return jsonify({
-        "totalDisbursed": int(total_disbursed),
-        "totalRepaid": int(total_repaid),
+        "totalRevenue": total_revenue,
+        "totalDisbursed": total_disbursed,
+        "totalRepaid": total_repaid,
         "activeLoans": active_loans,
+        "defaultRate": default_rate,
         "newCustomersThisMonth": new_customers_this_month,
-        "collectionRate": round(collection_rate, 2),
-        "defaultRate": round(default_rate, 2),
-        "averageLoanSize": int(avg_loan_size)
-    }), 200
+    })
 
-
-# -------- PERFORMANCE (time series) --------
+# PERFORMANCE
 @analytics_bp.route('/performance', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_performance():
-    """
-    Last 6 months disbursed vs repaid totals by month.
-    """
+    # Monthly disbursed and repaid amounts for last 6 months
     from datetime import datetime, timedelta
+    import calendar
 
-    # Build last 6 month buckets (UTC, month start)
-    today = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    months = []
-    for i in range(6, 0, -1):  # 6,5,4,3,2,1
-        month_start = (today - timedelta(days=30 * i)).replace(day=1)
-        month_end = (month_start + timedelta(days=32)).replace(day=1)
-        months.append((month_start, month_end))
+    today = datetime.today()
+    six_months_ago = today - timedelta(days=180)
 
-    series = []
-    for (start, end) in months:
-        disbursed = db.session.query(func.coalesce(func.sum(Loan.amount), 0)).filter(
-            Loan.created_at >= start, Loan.created_at < end
+    monthly_data = []
+    for i in range(6):
+        month_start = (today.replace(day=1) - timedelta(days=30*i)).replace(day=1)
+        month_end = (month_start + timedelta(days=calendar.monthrange(month_start.year, month_start.month)[1] - 1))
+        # Use issued_date instead of created_at since Loan model doesn't have created_at
+        disbursed = db.session.query(func.sum(Loan.amount)).filter(
+            Loan.issued_date >= month_start,
+            Loan.issued_date <= month_end
         ).scalar() or 0
-
-        repaid = db.session.query(func.coalesce(func.sum(Repayment.amount), 0)).filter(
-            Repayment.created_at >= start, Repayment.created_at < end
+        repaid = db.session.query(func.sum(Repayment.amount_paid)).filter(
+            Repayment.paid_at >= month_start,
+            Repayment.paid_at <= month_end
         ).scalar() or 0
-
-        series.append({
-            "month": start.strftime("%Y-%m"),
-            "disbursed": int(disbursed),
-            "repaid": int(repaid),
+        monthly_data.append({
+            "month": month_start.strftime("%b"),
+            "disbursed": disbursed,
+            "repaid": repaid
         })
 
-    # Simple MoM growth on disbursed
-    growth_rate = 0.0
-    if len(series) >= 2 and series[-2]["disbursed"] > 0:
-        growth_rate = (series[-1]["disbursed"] - series[-2]["disbursed"]) / series[-2]["disbursed"] * 100.0
+    monthly_data.reverse()  # Oldest first
 
-    Notification.create_notification(None, "📈 Performance data accessed.")
+    # Calculate growth rate (simple example)
+    growth_rate = 0
+    if len(monthly_data) >= 2 and monthly_data[-2]["disbursed"] > 0:
+        growth_rate = ((monthly_data[-1]["disbursed"] - monthly_data[-2]["disbursed"]) / monthly_data[-2]["disbursed"]) * 100
 
     return jsonify({
-        "monthlyPerformance": series,
-        "growthRate": round(growth_rate, 2)
-    }), 200
+        "monthlyPerformance": monthly_data,
+        "growthRate": growth_rate
+    })
 
-
-# -------- CUSTOMERS --------
+# CUSTOMER ANALYTICS
 @analytics_bp.route('/customers', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_customer_analytics():
-    """
-    Segments by business_name + placeholder demographics.
-    """
+    # Segmentation by business name with count and average loan amount
     segments_raw = db.session.query(
         Customer.business_name,
-        func.count(Customer.id)
-    ).group_by(Customer.business_name).all()
+        func.count(Customer.id),
+        func.avg(Loan.amount)
+    ).join(Loan, Loan.customer_id == Customer.id).group_by(Customer.business_name).all()
 
-    segments = [{"segment": (s[0] or "Unknown"), "count": s[1]} for s in segments_raw]
+    total_customers = sum([s[1] for s in segments_raw]) or 1  # avoid division by zero
 
-    # Demographics placeholders unless you store DOB/gender/region fields
+    segments = []
+    for business_name, count, avg_loan in segments_raw:
+        percentage = (count / total_customers) * 100
+        segments.append({
+            "segment": business_name,
+            "count": count,
+            "percentage": round(percentage, 2),
+            "avgLoan": round(avg_loan or 0, 2)
+        })
+
     demographics = {
-        "ageGroups": {"18-25": 0, "26-35": 0, "36-50": 0, "51+": 0},
-        "gender": {"male": 0, "female": 0, "unspecified": 0},
+        "ageGroups": [
+            {"age": "18-25", "percentage": 0},
+            {"age": "26-35", "percentage": 0},
+            {"age": "36-50", "percentage": 0},
+            {"age": "51+", "percentage": 0}
+        ],
+        "gender": [
+            {"gender": "male", "count": 0, "percentage": 0},
+            {"gender": "female", "count": 0, "percentage": 0}
+        ],
         "location": {}
     }
 
-    Notification.create_notification(None, "👥 Customer analytics accessed.")
-    return jsonify({"segments": segments, "demographics": demographics}), 200
+    # For simplicity, demographics data is left as zero or empty
+    # This can be extended with actual queries if age, gender, location fields exist
 
+    return jsonify({
+        "segments": segments,
+        "demographics": demographics
+    })
 
-# -------- RISK --------
+# RISK ANALYSIS
 @analytics_bp.route('/risk', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_risk_analysis():
-    """
-    Distribution by Loan.status + simple default trend placeholder.
-    """
-    distribution_raw = db.session.query(
-        Loan.status, func.count(Loan.id)
+    # Example risk distribution by loan status
+    risk_distribution_raw = db.session.query(
+        Loan.status,
+        func.count(Loan.id)
     ).group_by(Loan.status).all()
 
-    distribution = [{"riskLevel": (r[0] or "unknown"), "count": r[1]} for r in distribution_raw]
+    total_loans = sum([r[1] for r in risk_distribution_raw]) or 1  # avoid division by zero
 
+    # Assign colors and calculate percentages
+    color_map = {
+        'active': '#059669',    # green
+        'defaulted': '#DC2626', # red
+        'completed': '#1E40AF', # blue
+        'pending': '#FBBF24',   # yellow
+    }
+
+    risk_distribution = []
+    for status, count in risk_distribution_raw:
+        percentage = (count / total_loans) * 100
+        risk_distribution.append({
+            "risk": status.value if hasattr(status, 'value') else status,
+            "count": count,
+            "percentage": round(percentage, 2),
+            "color": color_map.get(status.value if hasattr(status, 'value') else status, '#6B7280')  # default gray
+        })
+
+    # Example risk trends (dummy data)
     risk_trends = [
-        {"month": "Apr", "defaults": 12},
-        {"month": "May", "defaults": 18},
-        {"month": "Jun", "defaults": 23},
+        {"month": "Apr", "low": 70, "medium": 25, "high": 5},
+        {"month": "May", "low": 68, "medium": 27, "high": 5},
+        {"month": "Jun", "low": 65, "medium": 30, "high": 5},
+        {"month": "Jul", "low": 63, "medium": 32, "high": 5},
     ]
 
-    Notification.create_notification(None, "⚠️ Risk analysis viewed.")
-    return jsonify({"distribution": distribution, "trends": risk_trends}), 200
+    return jsonify({
+        "distribution": risk_distribution,
+        "trends": risk_trends
+    })
 
-
-# -------- LOANS (time series) --------
+# LOAN ANALYTICS
 @analytics_bp.route('/loans', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_loan_analytics():
-    """
-    Monthly disbursements & repayments.
-    """
-    disbursements = db.session.query(
-        func.date_trunc('month', Loan.created_at).label('month'),
-        func.coalesce(func.sum(Loan.amount), 0)
-    ).group_by('month').order_by('month').all()
+    # Get monthly disbursements using SQLite-compatible approach
+    disbursements_raw = db.session.query(
+        extract('month', Loan.issued_date).label('month'),
+        extract('year', Loan.issued_date).label('year'),
+        func.sum(Loan.amount)
+    ).group_by('year', 'month').order_by('year', 'month').all()
 
-    repayments = db.session.query(
-        func.date_trunc('month', Repayment.created_at).label('month'),
-        func.coalesce(func.sum(Repayment.amount), 0)
-    ).group_by('month').order_by('month').all()
+    # Format disbursements data
+    disbursements = []
+    for item in disbursements_raw:
+        month_name = datetime(2023, int(item.month), 1).strftime("%b")
+        disbursements.append({
+            "month": month_name,
+            "amount": item[2]
+        })
 
-    map_series = lambda rows: [{"month": r[0].strftime("%b %Y"), "amount": int(r[1])} for r in rows]
+    # Get monthly repayments using SQLite-compatible approach
+    repayments_raw = db.session.query(
+        extract('month', Repayment.paid_at).label('month'),
+        extract('year', Repayment.paid_at).label('year'),
+        func.sum(Repayment.amount_paid)
+    ).group_by('year', 'month').order_by('year', 'month').all()
 
-    # Default rate across all loans
+    # Format repayments data
+    repayments = []
+    for item in repayments_raw:
+        month_name = datetime(2023, int(item.month), 1).strftime("%b")
+        repayments.append({
+            "month": month_name,
+            "amount": item[2]
+        })
+
+    default_rate = 0
     total_loans = db.session.query(Loan).count()
     defaulted_loans = db.session.query(Loan).filter(Loan.status == 'defaulted').count()
-    default_rate = (defaulted_loans / total_loans * 100.0) if total_loans else 0.0
+    if total_loans > 0:
+        default_rate = (defaulted_loans / total_loans) * 100
 
-    Notification.create_notification(None, "💰 Loan analytics accessed.")
     return jsonify({
-        "disbursements": map_series(disbursements),
-        "repayments": map_series(repayments),
-        "defaultRate": round(default_rate, 2)
-    }), 200
+        "disbursements": disbursements,
+        "repayments": repayments,
+        "defaultRate": default_rate
+    })
 
-
-# -------- LOAN TYPES --------
 @analytics_bp.route('/loans/types', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_loan_types():
-    types_raw = db.session.query(
+    types = db.session.query(
         LoanProduct.name,
         func.count(Loan.id)
-    ).join(Loan, Loan.loan_product_id == LoanProduct.id) \
-     .group_by(LoanProduct.name).all()
+    ).join(Loan, Loan.loan_product_id == LoanProduct.id).group_by(LoanProduct.name).all()
 
-    Notification.create_notification(None, "📚 Loan type breakdown accessed.")
-    return jsonify({"types": [{"type": t[0], "count": t[1]} for t in types_raw]}), 200
+    return jsonify({"types": [{"type": t[0], "count": t[1]} for t in types]})
 
-
-# -------- REPAYMENT SUMMARY --------
 @analytics_bp.route('/loans/repayment', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_loan_repayment():
-    """
-    Placeholder repayment schedule + rate (replace with real schedule if you store it).
-    """
+    # Example repayment schedule and rate (dummy data)
     repayment_schedule = [
         {"month": "Apr", "amount": 180000},
         {"month": "May", "amount": 240000},
@@ -225,54 +247,45 @@ def get_loan_repayment():
     ]
     repayment_rate = 86.5
 
-    Notification.create_notification(None, "🔁 Repayment analytics viewed.")
     return jsonify({
         "repaymentSchedule": repayment_schedule,
         "repaymentRate": repayment_rate
-    }), 200
+    })
 
-
-# -------- LOAN OVERVIEW --------
 @analytics_bp.route('/loans/overview', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_loan_overview():
     total_loans = db.session.query(Loan).count()
-    disbursed_amount = db.session.query(func.coalesce(func.sum(Loan.amount), 0)).scalar() or 0
-    repaid_amount = db.session.query(func.coalesce(func.sum(Repayment.amount), 0)).scalar() or 0
+    disbursed_amount = db.session.query(func.sum(Loan.amount)).scalar() or 0
+    repaid_amount = db.session.query(func.sum(Repayment.amount_paid)).scalar() or 0
     active_loans = db.session.query(Loan).filter(Loan.status == 'active').count()
     defaulted_loans = db.session.query(Loan).filter(Loan.status == 'defaulted').count()
 
-    Notification.create_notification(None, "📊 Loan overview viewed.")
     return jsonify({
         "totalLoans": total_loans,
-        "disbursedAmount": int(disbursed_amount),
-        "repaidAmount": int(repaid_amount),
+        "disbursedAmount": disbursed_amount,
+        "repaidAmount": repaid_amount,
         "activeLoans": active_loans,
         "defaultedLoans": defaulted_loans
-    }), 200
+    })
 
-
-# -------- PORTFOLIO BREAKDOWN --------
 @analytics_bp.route('/loans/portfolio', methods=['GET'])
 @jwt_required()
 @role_required(['admin', 'lender'])
 def get_loan_portfolio():
-    region_stats_raw = db.session.query(
+    region_stats = db.session.query(
         Customer.location,
-        func.coalesce(func.sum(Loan.amount), 0),
+        func.sum(Loan.amount),
         func.count(Loan.id)
-    ).join(Loan, Loan.customer_id == Customer.id) \
-     .group_by(Customer.location).all()
+    ).join(Loan, Loan.customer_id == Customer.id).group_by(Customer.location).all()
 
-    product_stats_raw = db.session.query(
+    product_stats = db.session.query(
         LoanProduct.name,
-        func.coalesce(func.sum(Loan.amount), 0)
-    ).join(Loan, Loan.loan_product_id == LoanProduct.id) \
-     .group_by(LoanProduct.name).all()
+        func.sum(Loan.amount)
+    ).join(Loan, Loan.loan_product_id == LoanProduct.id).group_by(LoanProduct.name).all()
 
-    Notification.create_notification(None, "🌍 Portfolio data accessed.")
     return jsonify({
-        "regionStats": [{"region": r[0] or "Unknown", "portfolioValue": int(r[1]), "activeLoans": r[2]} for r in region_stats_raw],
-        "loanProductStats": [{"product": p[0], "value": int(p[1])} for p in product_stats_raw]
-    }), 200
+        "regionStats": [{"region": r[0], "portfolioValue": r[1], "activeLoans": r[2]} for r in region_stats],
+        "loanProductStats": [{"product": p[0], "value": p[1]} for p in product_stats]
+    })

@@ -20,9 +20,6 @@ class Customer(db.Model, SerializerMixin):
     location = db.Column(db.String(100))
     documents = db.Column(db.JSON, default={}) 
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    lender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-
-
     # The user (admin/lender) who created this customer manually
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
@@ -40,12 +37,6 @@ class Customer(db.Model, SerializerMixin):
         "User",
         foreign_keys=[customer_user_id],
         back_populates="customer_profile"
-    )
-
-    lender_id = db.Column(
-        db.Integer,
-        db.ForeignKey('users.id', name='fk_customers_lender_id_user'),
-        nullable=True
     )
 
     def _repr_(self):

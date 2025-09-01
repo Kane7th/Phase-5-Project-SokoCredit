@@ -15,6 +15,7 @@ import {
 import { analyticsService } from '../../services/analyticsService'
 import { customerService } from '../../services/customerService'
 import { getLenderLoans } from '../../services/loanService'
+import LoanManagement from './LoanManagement'
 
 const LenderDashboard = () => {
   const { user } = useSelector((state) => state.auth)
@@ -364,32 +365,18 @@ const LenderDashboard = () => {
         </div>
       )}
 
-      {activeTab === 'loans' && (
-        <div className="dashboard-content">
-          <div className="card">
-            <div className="card-header">
-              <h3 className="heading-3">Loan Management</h3>
-            </div>
-            <div className="card-body">
-              {lenderLoans.length === 0 ? (
-                <p>No loans found.</p>
-              ) : (
-                <div className="loan-list">
-                  {lenderLoans.map((loan) => (
-                    <div key={loan.id} className="loan-item">
-                      <h4>Loan #{loan.id}</h4>
-                      <p>Amount: KSH {loan.amount.toLocaleString()}</p>
-                      <p>Status: {loan.status}</p>
-                      <p>Customer ID: {loan.customer_id}</p>
-                      <p>Issued Date: {loan.issued_date ? new Date(loan.issued_date).toLocaleDateString() : 'N/A'}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+{activeTab === 'loans' && (
+  <div className="dashboard-content">
+    <div className="card">
+      <div className="card-header">
+        <h3 className="heading-3">Loan Management</h3>
+      </div>
+      <div className="card-body">
+        <LoanManagement lenderId={user.id} />
+      </div>
+    </div>
+  </div>
+)}
 
       {activeTab === 'collections' && (
         <div className="dashboard-content">

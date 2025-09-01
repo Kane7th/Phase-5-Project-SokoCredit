@@ -57,23 +57,23 @@ def create_app(config="config.default_config.DefaultConfig"):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # Ensure consistent CORS headers on responses
-    def cors_after_request(response):
-        # Remove duplicates if any were set upstream
-        for h in ["Access-Control-Allow-Credentials",
-                  "Access-Control-Allow-Origin",
-                  "Access-Control-Allow-Headers"]:
-            if h in response.headers:
-                response.headers.pop(h)
-        response.headers.add("Access-Control-Allow-Credentials", "true")
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept")
-        return response
+    # Enable CORS
+    CORS(app, resources={
+        r"/api/auth/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/customers/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/loans/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/repayments/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/mpesa/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/admin/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/loan-products/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/users/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/notifications/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/analytics/*": {"origins": "http://localhost:5173", "supports_credentials": True},
+        r"/api/customers/by-user/*": {"origins": "http://localhost:5173", "supports_credentials": True}
+    })
 
-    app.after_request(cors_after_request)
-
-    # Socket.IO
-    socketio.init_app(app, cors_allowed_origins="http://localhost:5173")
+    # Initialize socketio
+    socketio.init_app(app)
 
     # Blueprints
     from app.routes.customers import customers_bp
@@ -87,6 +87,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
+    from app.routes.admin import admin_bp
     from app.models.notification import Notification
     from app.routes.sms_test import sms_test_bp
     from app.routes.admin_routes import admin_bp
@@ -94,24 +95,18 @@ def create_app(config="config.default_config.DefaultConfig"):
     # Register with /api prefixes where applicable
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(customers_bp, url_prefix='/api/customers')
-    app.register_blueprint(loan_bp, url_prefix='/api/loans')
+    app.register_blueprint(loan_bp)
     app.register_blueprint(loan_product_bp, url_prefix='/api/loan-products')
-    # app.register_blueprint(loan_comment_bp, url_prefix='/api/loan-comments')
-    app.register_blueprint(repayment_bp, url_prefix='/api/repayments')
-
-    # These appear to be top-level/test integrations (no /api prefix in your current setup)
+    app.register_blueprint(repayment_bp)
     app.register_blueprint(test_bp)
     app.register_blueprint(mpesa_bp)
     app.register_blueprint(callback_bp)
-    app.register_blueprint(sms_test_bp)
-
-    # API-prefixed user/notifications/analytics/admin routes
-    app.register_blueprint(users_bp, url_prefix='/api/users')
-    app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+    app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(notifications_bp, url_prefix='/notifications')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(admin_bp)
 
-    # Sockets (after socketio init)
+    # Import NotificationNamespace after socketio is ready
     from app.sockets.notifications_socket import NotificationNamespace
     socketio.on_namespace(NotificationNamespace('/notifications'))
 

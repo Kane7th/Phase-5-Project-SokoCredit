@@ -16,10 +16,11 @@ import {
   Percent,
   Clock
 } from 'lucide-react'
-import PortofolioChart from './PortofolioChart'
+import PortfolioChart from './PortofolioChart'
 import CollectionChart from './CollectionChart'
 import RiskAnalysis from './RiskAnalysis'
-import CustomerSegmntation from './CustomerSegmntation'
+import CustomerSegmentation from './CustomerSegmntation'
+import { analyticsService } from '../../services/analyticsService'
 import '../../styles/analytics.css'
 
 const AnalyticsDashboard = () => {
@@ -41,10 +42,10 @@ const AnalyticsDashboard = () => {
     setIsLoading(true)
     setError(null)
     try {
-      const overview = await api.get('/api/analytics/overview')
-      const performance = await api.get('/api/analytics/performance')
-      const customers = await api.get('/api/analytics/customers')
-      const risk = await api.get('/api/analytics/risk')
+      const overview = await analyticsService.getOverview()
+      const performance = await analyticsService.getPerformance()
+      const customers = await analyticsService.getCustomerAnalytics()
+      const risk = await analyticsService.getRiskAnalysis()
 
       setAnalyticsData({
         overview,
@@ -213,14 +214,14 @@ const AnalyticsDashboard = () => {
                 </select>
               </div>
             </div>
-            <PortofolioChart data={performance.disbursed} />
+            <PortfolioChart data={performance.disbursed} />
           </div>
 
           <div className="chart-container">
             <div className="chart-header">
               <h3>Collection Performance</h3>
             </div>
-            <CollectionChart data={performance.collections} />
+            <CollectionChart data={performance.monthlyPerformance ? performance.monthlyPerformance.map(item => ({ month: item.month, target: item.disbursed, actual: item.repaid })) : []} />
           </div>
 
           <div className="chart-container">

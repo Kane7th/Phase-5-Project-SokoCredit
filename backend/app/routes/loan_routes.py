@@ -26,60 +26,41 @@ def index():
 @loan_bp.route('', methods=['POST'])
 @cross_origin()
 @jwt_required()
-@role_required('customer')
+@role_required(['customer'])
 def apply_loan():
     import traceback
     try:
         data = request.get_json() or {}
         product_id = data.get('loan_product_id')
         amount = data.get('amount')
+        loan_product_id = data.get('loan_product_id')
 
-        if not all([product_id, amount]):
-            return jsonify({'error': 'Missing required fields: loan_product_id, amount'}), 400
+        if not amount or not loan_product_id:
+            return jsonify({"error": "Missing amount or loan_product_id"}), 400
 
-        if not isinstance(amount, (int, float)) or amount <= 0:
-            return jsonify({'error': 'Loan amount must be a positive number'}), 400
-
-        customer_id = int(get_jwt_identity().split(':')[0])
-
-        # Ensure customer has no active/pending loans
-        active_loan = Loan.query.filter(
-            Loan.customer_id == customer_id,
-            Loan.status.in_([LoanStatus.pending, LoanStatus.approved, LoanStatus.disbursed, LoanStatus.overdue])
-        ).first()
-        if active_loan:
-            return jsonify({'error': 'You already have an active loan'}), 403
-
-        loan_product = LoanProduct.query.get(product_id)
+        loan_product = LoanProduct.query.get(loan_product_id)
         if not loan_product:
-            return jsonify({'error': 'Selected loan product does not exist'}), 404
+            return jsonify({"error": "Invalid loan product"}), 400
 
-        if amount > loan_product.max_amount:
-            return jsonify({'error': f'Requested amount exceeds maximum allowed ({loan_product.max_amount})'}), 400
+        # Assign lender based on loan product
+        lender = loan_product.lender
 
-        new_loan = Loan(
+        if not lender:
+            return jsonify({"error": "No lender assigned to this loan product"}), 400
+
+        user_id = int(get_jwt_identity().split(':')[0])
+
+        loan = Loan(
             amount=amount,
-            interest_rate=loan_product.interest_rate,
-            duration_months=loan_product.duration_months,
-            customer_id=customer_id,
-            status=LoanStatus.pending,
-            lender_id=loan_product.lender_id,
-            loan_product_id=loan_product.id
+            customer_id=user_id,
+            loan_product_id=loan_product_id,
+            lender_id=lender.id,
+            status='pending'
         )
-
-        db.session.add(new_loan)
+        db.session.add(loan)
         db.session.commit()
 
-        Notification.create_notification(
-            user_id=loan_product.lender_id,
-            message=f"New loan application submitted by customer #{customer_id} for KES {amount}"
-        )
-
-        lender = User.query.get(loan_product.lender_id)
-        if lender and lender.phone:
-            send_sms(lender.phone, f"SokoCredit: New loan application by customer #{customer_id} for KES {amount}.")
-
-        return jsonify(new_loan.to_dict()), 201
+        return jsonify({"message": "Loan application submitted", "loan_id": loan.id}), 201
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -515,3 +496,120 @@ def delete_loan_product(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Failed to delete loan product', 'message': str(e)}), 500
+
+
+# A lender approves any applied loan
+@loan_bp.route('/<int:id>/approve', methods=['PATCH'])
+@jwt_required()
+@role_required(['admin', 'lender'])
+def approve_loan(id):
+    try:
+        loan = Loan.query.get_or_404(id)
+
+        if loan.status != LoanStatus.pending:
+            return jsonify({'error': 'No pending loans to approve'}), 400
+
+        loan.status = LoanStatus.approved
+        loan.approved_date = datetime.utcnow()
+
+        repayment_count = 12
+        amount_per_week = round(loan.amount / repayment_count, 2)
+        today = datetime.utcnow()
+
+        for i in range(repayment_count):
+            schedule = RepaymentSchedule(
+                loan_id=loan.id,
+                due_date=today + timedelta(weeks=i),
+                amount_due=amount_per_week,
+                status='unpaid'
+            )
+            db.session.add(schedule)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Loan approved and repayment schedule created',
+            'loan': loan.to_dict(rules=(
+                '-borrower', '-lender', '-repayments', '-loan_product',
+                'repayment_schedules.id',
+                'repayment_schedules.due_date',
+                'repayment_schedules.amount_due',
+                'repayment_schedules.status'
+            ))
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to approve the loan', 'message': str(e)}), 500
+
+
+# Lender can reject an applied loan
+@loan_bp.route('/<int:id>/reject', methods=['PATCH'])
+@jwt_required()
+@role_required(['admin', 'lender'])
+def reject_loan(id):
+    try:
+        data = request.get_json()
+        rejected_reason = data.get('rejected_reason', '')
+
+        loan = Loan.query.get_or_404(id)
+
+        if loan.status != LoanStatus.pending:
+            return jsonify({'error': 'You can only reject a pending loan'}), 400
+
+        loan.status = LoanStatus.rejected
+        loan.rejected_reason = rejected_reason
+
+        db.session.commit()
+        return jsonify(loan.to_dict()), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to reject loan application', 'message': str(e)}), 500
+
+
+# Lender/admin can disburse loans after approval
+@loan_bp.route('/loans/<int:id>/disburse', methods=['PATCH'])
+@jwt_required()
+@role_required(['admin', 'lender'])
+def disburse_loan(id):
+    try:
+        loan = Loan.query.get_or_404(id)
+
+        if loan.status != LoanStatus.approved:
+            return jsonify({'error': 'You can only disburse approved loan'}), 400
+
+        loan.status = LoanStatus.disbursed
+        loan.issued_date = datetime.utcnow()
+
+        db.session.commit()
+        return jsonify(loan.to_dict()), 200
+
+    except Exception as e:
+        return jsonify({'error': 'Failed to disburse the loan', 'message': str(e)}), 500
+
+
+# Lender can update loan status for loans under their loan products
+@loan_bp.route('/<int:loan_id>/status', methods=['PUT'])
+@jwt_required()
+@role_required(['lender'])
+def update_loan_status(loan_id):
+    data = request.get_json()
+    new_status = data.get('status')
+    user_id = int(get_jwt_identity().split(':')[0])
+
+    loan = Loan.query.get(loan_id)
+    if not loan:
+        return jsonify({"error": "Loan not found"}), 404
+
+    # Check if the lender owns this loan
+    if loan.lender_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    if new_status not in ['pending', 'active', 'rejected', 'defaulted', 'completed']:
+        return jsonify({"error": "Invalid status"}), 400
+
+    loan.status = new_status
+    db.session.commit()
+
+    return jsonify({"message": "Loan status updated", "loan_id": loan.id, "new_status": new_status}), 200
