@@ -13,10 +13,10 @@ from app.models.repaymentSchedule import RepaymentStatus
 from app.models.repayment import PaymentMethod
 from utils.sms_service import send_sms
 
-repayment_bp = Blueprint('repayment_bp', __name__)
+repayment_bp = Blueprint('repayment_bp', __name__, url_prefix="/repayment")
 
 # ------------------ Create a repayment ------------------
-@repayment_bp.route('', methods=['POST'])
+@repayment_bp.route('/', methods=['POST'])
 @cross_origin()
 @jwt_required()
 @role_required('customer')

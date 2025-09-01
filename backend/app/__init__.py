@@ -44,7 +44,7 @@ def create_app(config="config.default_config.DefaultConfig"):
     from app.routes.mpesa.callbacks import callback_bp
     from app.routes.notifications import notifications_bp
     from app.routes.analytics import analytics_bp
-    from app.routes.admin import admin_bp
+    from app.routes.admin_routes import admin_bp
     from app.models.notification import Notification
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -71,3 +71,12 @@ def create_app(config="config.default_config.DefaultConfig"):
         return jsonify({"msg": "File too large (max 10MB)"}), 413
 
     return app
+
+from flask import Blueprint
+
+admin_bp = Blueprint('admin', __name__)
+
+# Add your admin routes below
+@admin_bp.route('/api/admin/ping')
+def admin_ping():
+    return {"msg": "Admin route is working!"}
