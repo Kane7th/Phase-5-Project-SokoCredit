@@ -17,17 +17,17 @@ def create_app(config="config.default_config.DefaultConfig"):
 
     # Enable CORS
     CORS(app, resources={
-        r"/api/auth/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/customers/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/loans/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/repayments/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/mpesa/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/admin/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/loan-products/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/users/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/notifications/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/analytics/*": {"origins": "http://localhost:5173", "supports_credentials": True},
-        r"/api/customers/by-user/*": {"origins": "http://localhost:5173", "supports_credentials": True}
+        r"/api/auth/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/customers/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/loans/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/repayments/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/mpesa/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/admin/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/loan-products/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/users/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/notifications/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/analytics/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True},
+        r"/api/customers/by-user/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], "supports_credentials": True}
     })
 
     # Initialize socketio
